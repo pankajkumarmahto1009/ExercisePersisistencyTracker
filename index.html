@@ -17,7 +17,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     
     <style>
-        /* Custom styles for aesthetic (Kept from original) */
+        /* Custom styles for aesthetic */
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f7f9fc;
@@ -101,7 +101,7 @@
                 <button onclick="appLogic.handleLogout()" class="text-xs text-red-500 hover:text-red-700 py-1 px-3 border border-red-300 rounded transition duration-150">Logout</button>
             </div>
 
-            <!-- Mindset Card (Centerpiece) - KEPT THE SAME FOR MOTIVATION -->
+            <!-- Mindset Card (Centerpiece) - Renamed for commitment -->
             <div id="believeCard" class="bg-white p-6 rounded-xl border-l-4 border-yellow-400 max-w-lg mx-auto mb-8 shadow-lg">
                 <div class="flex flex-col items-center justify-center">
                     <h2 class="text-3xl font-bold text-gray-800 mb-3">Commit 100%</h2>
@@ -112,10 +112,10 @@
                 </div>
             </div>
 
-            <!-- Growth Areas Grid -->
+            <!-- Growth Areas Grid - NEW EXERCISE CATEGORIES -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
 
-                <!-- Pushups -->
+                <!-- Pushups (Replacing Academic) -->
                 <div id="pushupsCard" class="tracker-card bg-white p-6 border-l-4 border-green-400">
                     <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.433 9.498 5 8 5c-4 0-4 4-4 8 0 1.498.433 2.832 1.253 4M12 6.253c1.168-.82 2.502-1.253 4-1.253 4 0 4 4 4 8 0 1.498-.433 2.832-1.253 4"></path></svg>
@@ -138,7 +138,7 @@
                     </div>
                 </div>
 
-                <!-- Crunches -->
+                <!-- Crunches (Replacing Daily Workout) -->
                 <div id="crunchesCard" class="tracker-card bg-white p-6 border-l-4 border-blue-400">
                     <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 14v5"></path></svg>
@@ -161,7 +161,7 @@
                     </div>
                 </div>
 
-                <!-- Squats -->
+                <!-- Squats (Replacing Personality & Social) -->
                 <div id="squatsCard" class="tracker-card bg-white p-6 border-l-4 border-purple-400">
                     <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 4v12l-4-2-4 2V4M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -184,7 +184,7 @@
                     </div>
                 </div>
 
-                <!-- Taekwondo Stretching -->
+                <!-- Taekwondo Stretching (Replacing Placeholder/Future Area) -->
                 <div id="taekwondoCard" class="tracker-card bg-white p-6 border-l-4 border-red-400">
                     <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>
@@ -251,21 +251,21 @@
                 </div>
 
                 <!-- Chart Cards (3/4 of space on large screens) -->
-                <div class="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <!-- Pushups Chart (New ID) -->
+                <div class="lg:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <!-- Pushups Chart -->
                     <div class="analysis-card h-64 md:h-72">
                         <canvas id="pushupsChart"></canvas>
                     </div>
-                    <!-- Crunches Chart (New ID) -->
+                    <!-- Crunches Chart -->
                     <div class="analysis-card h-64 md:h-72">
                         <canvas id="crunchesChart"></canvas>
                     </div>
-                    <!-- Squats Chart (New ID) -->
+                    <!-- Squats Chart -->
                     <div class="analysis-card h-64 md:h-72">
                         <canvas id="squatsChart"></canvas>
                     </div>
-                    <!-- Taekwondo Chart (Moved here) -->
-                    <div class="analysis-card h-64 md:h-72 hidden md:block"> <!-- Hidden on small screens to fit 3 in a row, but will be drawn -->
+                    <!-- Taekwondo Chart -->
+                    <div class="analysis-card h-64 md:h-72">
                         <canvas id="taekwondoChart"></canvas>
                     </div>
                 </div>
@@ -287,20 +287,21 @@
         let auth = null; 
         let db = null;   
 
-        // --- USER'S HARDCODED CONFIGURATION (CRITICAL FIX: UPDATED WITH USER'S NEW KEYS) ---
+        // --- FIREBASE CONFIGURATION (USING YOUR NEW PROJECT KEYS) ---
+        // NOTE: This uses the configuration we finalized previously. If you are using a different Firebase project than 
+        // "exercise-progress-tracker", you MUST update these 6 values.
         const hardcodedFirebaseConfig = {
             apiKey: "AIzaSyDqiw7UTiSPEDXDFRwZPBmBBWQ0sYlQLGg",
             authDomain: "exercise-progress-tracker.firebaseapp.com",
             projectId: "exercise-progress-tracker",
             storageBucket: "exercise-progress-tracker.firebasestorage.app",
             messagingSenderId: "1009491659527",
-            appId: "1:1009491659527:web:2488324d4c0cf441acd3a2",
-            // measurementId is optional and not needed for core functionality
+            appId: "1:1009491659527:web:2488324d4c0cf441acd3a2"
         };
         
         // Environment variables required for Canvas functionality
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : hardcodedFirebaseConfig.projectId; // Use project ID as fallback for appId
+        const appId = typeof __app_id !== 'undefined' ? __app_id : hardcodedFirebaseConfig.projectId;
 
         // App logic object to manage state and functions
         const appLogic = {
@@ -321,7 +322,7 @@
                 mindset: { status: 'Untoggled', is100: false, unit: 'Affirmed' },
             },
             
-            // --- UTILITIES & UI HELPERS (Same) ---
+            // --- UTILITIES & UI HELPERS (Unchanged from original code) ---
             showStatusMessage(message, color) {
                 const statusMessage = document.getElementById('statusMessage');
                 statusMessage.textContent = message;
@@ -344,7 +345,7 @@
                 return moment().format('YYYY-MM-DD');
             },
 
-            // --- AUTHENTICATION HANDLERS (Same) ---
+            // --- AUTHENTICATION HANDLERS (Unchanged from original code) ---
             async handleGoogleLogin() {
                 if (!auth) {
                      appLogic.showStatusMessage('Initialization Failed. Please refresh.', 'bg-red-500');
@@ -360,7 +361,6 @@
                 });
 
                 try {
-                    // Use signInWithPopup to avoid redirect timing issues
                     await auth.signInWithPopup(provider);
                 } catch (error) {
                     if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
@@ -385,17 +385,15 @@
                 }
             },
 
-            // --- FIREBASE DATA SYNC (Same) ---
+            // --- FIREBASE DATA SYNC (Unchanged from original code) ---
             async setupDataListener() {
                 if (!appLogic.userId) return;
 
-                // CRITICAL FIX: Construct the full, secure, user-specific path
                 const docRef = db.collection('artifacts').doc(appId).collection('users').doc(appLogic.userId).collection('growthData').doc('history');
 
                 appLogic.setLoading(true);
 
                 try {
-                    // Use onSnapshot to listen for real-time updates
                     docRef.onSnapshot(docSnapshot => {
                         const data = docSnapshot.data() || {};
                         
@@ -404,6 +402,7 @@
                         const todayKey = appLogic.getTodayDateKey();
                         let dailyData = appLogic.history[todayKey] || {};
 
+                        // Use Object.assign to merge daily data with new DEFAULT_GOALS structure
                         appLogic.dailyGoalData = Object.assign({}, appLogic.DEFAULT_GOALS, dailyData);
                         appLogic.dailyGoalData.date = todayKey; 
 
@@ -432,24 +431,22 @@
                 appLogic.TRACKER_AREAS.forEach(area => {
                     dataToSave[area] = appLogic.dailyGoalData[area] || appLogic.DEFAULT_GOALS[area];
                 });
-                
+
                 appLogic.history[todayKey] = {
                     ...dataToSave,
                     date: todayKey
                 };
 
-                // CRITICAL FIX: Construct the full, secure, user-specific path
                 const docRef = db.collection('artifacts').doc(appId).collection('users').doc(appLogic.userId).collection('growthData').doc('history');
 
                 try {
-                    // Use set with merge: true to save the updated history map
                     await docRef.set({ history: appLogic.history }, { merge: true });
                 } catch (e) {
                     appLogic.showStatusMessage(`Save failed: ${e.message}`, 'bg-red-500');
                 }
             },
 
-            // --- TRACKER LOGIC (Goal/Tracker/Mindset functions are structurally the same) ---
+            // --- TRACKER LOGIC (Adapted for new goals) ---
             updateGoal(area, inputId) { 
                 const input = document.getElementById(inputId);
                 let goal = parseFloat(input.value);
@@ -486,6 +483,7 @@
                     appLogic.showStatusMessage('Commitment status reset.', 'bg-gray-500');
                 }
             },
+            // Removed toggleSocialCheck as 'character' area is removed.
 
             resetDailyProgress() { 
                 const todayKey = appLogic.getTodayDateKey();
@@ -503,7 +501,7 @@
                 appLogic.showStatusMessage('Daily progress reset! New day, new opportunities!', 'bg-blue-600');
             },
 
-            // --- RENDER UI (Updated IDs) ---
+            // --- RENDER UI (Adapted for new goals) ---
             renderUI() { 
                 document.getElementById('todayDateDisplay').textContent = moment().format('ddd, MMM D, YYYY');
                 
@@ -520,20 +518,17 @@
                     progressBar.style.width = `${progressPercent}%`;
                     progressText.textContent = `${progress} / ${goal} (${Math.round(progressPercent)}%)`;
 
-                    card.classList.remove('ring-2', 'ring-offset-2', 'ring-green-400', 'ring-offset-white');
+                    card.classList.remove('ring-2', 'ring-offset-2', 'ring-green-400', 'ring-offset-white', 'ring-blue-400', 'ring-purple-400', 'ring-red-400');
                     progressBar.classList.remove('!bg-green-600', '!bg-blue-600', '!bg-purple-600', '!bg-red-600');
 
                     if (progressPercent >= 100) {
-                        // Use the default color for the area, but make the card glow/progress bar darker green
                         let cardRingColor;
                         switch (area) {
                             case 'pushups': cardRingColor = 'ring-green-400'; progressBar.classList.add('!bg-green-600'); break;
                             case 'crunches': cardRingColor = 'ring-blue-400'; progressBar.classList.add('!bg-blue-600'); break;
                             case 'squats': cardRingColor = 'ring-purple-400'; progressBar.classList.add('!bg-purple-600'); break;
                             case 'taekwondo': cardRingColor = 'ring-red-400'; progressBar.classList.add('!bg-red-600'); break;
-                            default: cardRingColor = 'ring-green-400'; progressBar.classList.add('!bg-green-600');
                         }
-
                         card.classList.add('ring-2', 'ring-offset-2', cardRingColor, 'ring-offset-white');
                     }
                 });
@@ -558,7 +553,7 @@
                 appLogic.setAnalysisPeriod(appLogic.activePeriod);
             },
             
-            // --- ANALYSIS & CHARTING (Updated Logic) ---
+            // --- ANALYSIS & CHARTING (Adapted for new goals) ---
             setAnalysisPeriod(period) {
                 appLogic.activePeriod = period;
                 document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('period-active'));
@@ -668,7 +663,7 @@
             drawChart(area, labels, currentTrend, previousTrend) { 
                 if (appLogic.charts[area]) { appLogic.charts[area].destroy(); }
                 const ctx = document.getElementById(`${area}Chart`);
-                if (!ctx) return; // Guard in case the Taekwondo chart is not visible
+                if (!ctx) return;
                 const context = ctx.getContext('2d');
 
                 let color, label;
@@ -703,26 +698,23 @@
         };
 
 
-        // --- INITIALIZATION (Same) ---
+        // --- INITIALIZATION (Unchanged from original code) ---
         window.onload = async function() {
             firebase.setLogLevel('debug');
             
-            // 1. Initialize Firebase App (CRITICAL FIX: Uses the hardcoded config you provided)
             try {
-                // Initialize using the hardcoded config object
                 const app = firebase.initializeApp(hardcodedFirebaseConfig);
                 auth = app.auth();
                 db = app.firestore();
             } catch (e) {
-                console.error("FATAL: Firebase Initialization Error (Using Hardcoded Keys):", e);
-                appLogic.showStatusMessage('FATAL: Initialization failed. (Check console for API key error)', 'bg-red-900');
+                console.error("FATAL: Firebase Initialization Error:", e);
+                appLogic.showStatusMessage('FATAL: Initialization failed.', 'bg-red-900');
                 return;
             }
 
             let authStateHandled = false;
             appLogic.setLoading(true);
 
-            // 2. Attempt automatic sign-in (Custom Token or Anonymous)
             try {
                 if (initialAuthToken) {
                     await auth.signInWithCustomToken(initialAuthToken);
@@ -730,10 +722,9 @@
                     await auth.signInAnonymously();
                 }
             } catch (e) {
-                console.error("Initial Auth Error (Expected on first run):", e);
+                console.error("Initial Auth Error:", e);
             }
             
-            // 3. Add a Timeout Fallback (The Fix for the "Loading" loop)
             const loadingTimeout = setTimeout(() => {
                 if (!authStateHandled) {
                     appLogic.setLoading(false);
@@ -741,11 +732,10 @@
                     document.getElementById('googleSignInBtn').disabled = false;
                     appLogic.showStatusMessage('Automatic sign-in failed. Please sign in with Google.', 'bg-yellow-600');
                 }
-            }, 5000); // 5 second grace period
+            }, 5000);
 
-            // 4. Main Auth Listener: This is the SINGLE SOURCE OF TRUTH for UI visibility.
             auth.onAuthStateChanged((user) => {
-                clearTimeout(loadingTimeout); // Cancel the fallback if the listener fires
+                clearTimeout(loadingTimeout);
                 authStateHandled = true;
 
                 appLogic.setLoading(false); 
@@ -753,13 +743,11 @@
 
                 if (user) {
                     appLogic.setUserId(user.uid);
-                    // Show the Tracker
                     document.getElementById('authContainer').classList.add('hidden');
                     document.getElementById('trackerAppContainer').classList.remove('hidden');
                     appLogic.showStatusMessage('Successfully loaded dashboard.', 'bg-indigo-600');
                 } else {
                     appLogic.setUserId(null); 
-                    // Show the Sign-In Screen
                     document.getElementById('authContainer').classList.remove('hidden');
                     document.getElementById('trackerAppContainer').classList.add('hidden');
                 }
@@ -769,3 +757,4 @@
 
 </body>
 </html>
+
