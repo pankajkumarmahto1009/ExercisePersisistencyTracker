@@ -4,10 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exercise Persistency Tracker</title>
+    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Chart.js for graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <!-- Load Moment.js for date calculations -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
 
+    <!-- Firebase SDKs (Using compat versions for simplicity) -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -66,13 +70,16 @@
             <p class="text-lg text-gray-500 mt-1">Consistency is Key (Cloud Synced).</p>
         </header>
 
+        <!-- Status Message -->
         <div id="statusMessage" class="hidden fixed top-4 left-1/2 transform -translate-x-1/2 p-3 bg-gray-800 text-white rounded-lg shadow-xl z-50 text-sm opacity-0 transition-opacity duration-300"></div>
         
+        <!-- LOADING INDICATOR (Visible by default until state is determined by JS) -->
         <div id="loadingIndicator" class="fixed inset-0 bg-white/75 flex items-center justify-center z-50">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
             <span class="ml-4 text-indigo-700 font-semibold">Syncing Data...</span>
         </div>
 
+        <!-- AUTHENTICATION CONTAINER (Hidden by default) -->
         <div id="authContainer" class="max-w-md mx-auto my-16 p-8 bg-white rounded-xl shadow-2xl border border-gray-100 text-center hidden">
             <h2 class="text-3xl font-bold text-gray-800 mb-6">Welcome!</h2>
             <p class="text-gray-600 mb-6">Sign in to sync your progress across all devices.</p>
@@ -83,7 +90,9 @@
             </button>
         </div>
 
+        <!-- MAIN TRACKER CONTAINER (Hidden until login) -->
         <div id="trackerAppContainer" class="max-w-6xl mx-auto hidden">
+            <!-- Today's Date Display -->
             <div class="text-center mb-8 p-3 bg-indigo-50 border-b border-indigo-200 rounded-lg max-w-lg mx-auto flex justify-between items-center">
                 <div class="text-left">
                     <p class="text-sm text-indigo-700 font-medium">Logging for: <span id="todayDateDisplay" class="font-mono font-bold"></span></p>
@@ -92,6 +101,7 @@
                 <button onclick="appLogic.handleLogout()" class="text-xs text-red-500 hover:text-red-700 py-1 px-3 border border-red-300 rounded transition duration-150">Logout</button>
             </div>
 
+            <!-- Mindset Card (Centerpiece) - KEPT THE SAME FOR MOTIVATION -->
             <div id="believeCard" class="bg-white p-6 rounded-xl border-l-4 border-yellow-400 max-w-lg mx-auto mb-8 shadow-lg">
                 <div class="flex flex-col items-center justify-center">
                     <h2 class="text-3xl font-bold text-gray-800 mb-3">Commit 100%</h2>
@@ -102,8 +112,10 @@
                 </div>
             </div>
 
+            <!-- Growth Areas Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
 
+                <!-- Pushups -->
                 <div id="pushupsCard" class="tracker-card bg-white p-6 border-l-4 border-green-400">
                     <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.433 9.498 5 8 5c-4 0-4 4-4 8 0 1.498.433 2.832 1.253 4M12 6.253c1.168-.82 2.502-1.253 4-1.253 4 0 4 4 4 8 0 1.498-.433 2.832-1.253 4"></path></svg>
@@ -126,6 +138,7 @@
                     </div>
                 </div>
 
+                <!-- Crunches -->
                 <div id="crunchesCard" class="tracker-card bg-white p-6 border-l-4 border-blue-400">
                     <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 14v5"></path></svg>
@@ -148,6 +161,7 @@
                     </div>
                 </div>
 
+                <!-- Squats -->
                 <div id="squatsCard" class="tracker-card bg-white p-6 border-l-4 border-purple-400">
                     <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 4v12l-4-2-4 2V4M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -170,6 +184,7 @@
                     </div>
                 </div>
 
+                <!-- Taekwondo Stretching -->
                 <div id="taekwondoCard" class="tracker-card bg-white p-6 border-l-4 border-red-400">
                     <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>
@@ -194,8 +209,10 @@
 
             </div>
 
+            <!-- --- ANALYSIS SECTION (Charts) --- -->
             <h2 class="text-2xl font-bold text-gray-800 text-center mb-6 pt-4 border-t border-gray-300">Analysis & Trends</h2>
             
+            <!-- Period Selector -->
             <div class="flex justify-center space-x-2 sm:space-x-4 mb-8 flex-wrap">
                 <button id="weekBtn" onclick="appLogic.setAnalysisPeriod('week')" class="period-btn py-2 px-4 sm:px-6 rounded-full text-sm sm:text-base text-gray-700 border border-gray-300 hover:bg-indigo-100 transition duration-150 mb-2">
                     Compare Week
@@ -212,6 +229,7 @@
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-10">
+                <!-- Comparison Card -->
                 <div class="analysis-card border-t-4 border-indigo-500 lg:col-span-1 flex flex-col justify-center items-center text-center">
                     <h3 class="text-lg font-semibold text-gray-700 mb-2">Growth Rate</h3>
                     
@@ -228,23 +246,34 @@
                     </div>
                     
                     <div class="mt-4 text-xl font-bold" id="scoreDifference">
-                        </div>
+                        <!-- Difference text rendered by JS -->
+                    </div>
                 </div>
 
+                <!-- Chart Cards (3/4 of space on large screens) -->
                 <div class="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Pushups Chart (New ID) -->
                     <div class="analysis-card h-64 md:h-72">
                         <canvas id="pushupsChart"></canvas>
                     </div>
+                    <!-- Crunches Chart (New ID) -->
                     <div class="analysis-card h-64 md:h-72">
                         <canvas id="crunchesChart"></canvas>
                     </div>
+                    <!-- Squats Chart (New ID) -->
                     <div class="analysis-card h-64 md:h-72">
                         <canvas id="squatsChart"></canvas>
                     </div>
-                    <div class="analysis-card h-64 md:h-72 hidden md:block"> <canvas id="taekwondoChart"></canvas>
+                    <!-- Taekwondo Chart (Moved here) -->
+                    <div class="analysis-card h-64 md:h-72 hidden md:block"> <!-- Hidden on small screens to fit 3 in a row, but will be drawn -->
+                        <canvas id="taekwondoChart"></canvas>
                     </div>
                 </div>
             </div>
+            <!-- --- END ANALYSIS SECTION --- -->
+
+
+            <!-- Reset Button -->
             <div class="text-center mt-12 pb-4">
                 <button onclick="appLogic.resetDailyProgress()" class="text-sm text-gray-500 hover:text-red-500 transition duration-150 py-2 px-4 rounded-lg border border-gray-300 hover:border-red-500">
                     Reset Daily Progress (Start a new day)
@@ -258,14 +287,15 @@
         let auth = null; 
         let db = null;   
 
-        // --- USER'S HARDCODED CONFIGURATION (CRITICAL FIX) ---
+        // --- USER'S HARDCODED CONFIGURATION (CRITICAL FIX: UPDATED WITH USER'S NEW KEYS) ---
         const hardcodedFirebaseConfig = {
-            apiKey: "AIzaSyBm04Z-D_62R6gVFPVpzXbeiYm8n--1m_0",
-            authDomain: "selfgrowth-tracker.firebaseapp.com",
-            projectId: "selfgrowth-tracker",
-            storageBucket: "selfgrowth-tracker.firebasestorage.app",
-            messagingSenderId: "358018453335",
-            appId: "1:358018453335:web:e0760db9051da0b79ab812"
+            apiKey: "AIzaSyDqiw7UTiSPEDXDFRwZPBmBBWQ0sYlQLGg",
+            authDomain: "exercise-progress-tracker.firebaseapp.com",
+            projectId: "exercise-progress-tracker",
+            storageBucket: "exercise-progress-tracker.firebasestorage.app",
+            messagingSenderId: "1009491659527",
+            appId: "1:1009491659527:web:2488324d4c0cf441acd3a2",
+            // measurementId is optional and not needed for core functionality
         };
         
         // Environment variables required for Canvas functionality
@@ -491,7 +521,7 @@
                     progressText.textContent = `${progress} / ${goal} (${Math.round(progressPercent)}%)`;
 
                     card.classList.remove('ring-2', 'ring-offset-2', 'ring-green-400', 'ring-offset-white');
-                    progressBar.classList.remove('!bg-green-600');
+                    progressBar.classList.remove('!bg-green-600', '!bg-blue-600', '!bg-purple-600', '!bg-red-600');
 
                     if (progressPercent >= 100) {
                         // Use the default color for the area, but make the card glow/progress bar darker green
@@ -739,3 +769,4 @@
 
 </body>
 </html>
+
