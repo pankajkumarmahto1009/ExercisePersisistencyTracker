@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exercise Persistency Tracker</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Chart.js for graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <!-- Load Moment.js for date calculations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+
+    <!-- Firebase SDKs (Using compat versions for simplicity) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    
+    <style>
+        /* Custom styles for aesthetic (Kept from original) */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fc;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .tracker-card {
+            box-shadow: 0 5px 10px -3px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            border-radius: 0.75rem; /* Rounded corners */
+        }
+        .tracker-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .progress-bar {
+            height: 8px;
+            border-radius: 9999px;
+            transition: width 0.5s ease-in-out;
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.35rem 0.75rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            line-height: 1;
+        }
+        .analysis-card {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        /* Style for the active period button */
+        .period-active {
+            background-color: #4f46e5; /* indigo-600 */
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+
+</head>
+<body class="p-4 sm:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="text-center mb-6 pt-4">
+            <h1 class="text-4xl font-extrabold text-gray-800 tracking-tight">Daily Exercise Tracker</h1>
+            <p class="text-lg text-gray-500 mt-1">Consistency is Key (Cloud Synced).</p>
+        </header>
+
+        <!-- Status Message -->
+        <div id="statusMessage" class="hidden fixed top-4 left-1/2 transform -translate-x-1/2 p-3 bg-gray-800 text-white rounded-lg shadow-xl z-50 text-sm opacity-0 transition-opacity duration-300"></div>
+        
+        <!-- LOADING INDICATOR (Visible by default until state is determined by JS) -->
+        <div id="loadingIndicator" class="fixed inset-0 bg-white/75 flex items-center justify-center z-50">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+            <span class="ml-4 text-indigo-700 font-semibold">Syncing Data...</span>
+        </div>
+
+        <!-- AUTHENTICATION CONTAINER (Hidden by default) -->
+        <div id="authContainer" class="max-w-md mx-auto my-16 p-8 bg-white rounded-xl shadow-2xl border border-gray-100 text-center hidden">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">Welcome!</h2>
+            <p class="text-gray-600 mb-6">Sign in to sync your progress across all devices.</p>
+            
+            <button id="googleSignInBtn" onclick="appLogic.handleGoogleLogin()" class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-lg transition duration-150 shadow-md flex items-center justify-center space-x-2 transform hover:scale-[1.01]" disabled>
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12c6.63 0 12-5.37 12-12S18.63 0 12 0zm0 3.6c2.4 0 4.4 1.6 5.16 3.84L12 10.8V7.2H6.84A5.55 5.55 0 006.4 12c0 2.97 2.43 5.4 5.4 5.4s5.4-2.43 5.4-5.4h1.8c0 3.96-3.24 7.2-7.2 7.2S4.8 15.96 4.8 12 8.04 4.8 12 4.8z" fill="#fff"/></svg>
+                <span>Sign in with Google</span>
+            </button>
+        </div>
+
+        <!-- MAIN TRACKER CONTAINER (Hidden until login) -->
+        <div id="trackerAppContainer" class="max-w-6xl mx-auto hidden">
+            <!-- Today's Date Display -->
+            <div class="text-center mb-8 p-3 bg-indigo-50 border-b border-indigo-200 rounded-lg max-w-lg mx-auto flex justify-between items-center">
+                <div class="text-left">
+                    <p class="text-sm text-indigo-700 font-medium">Logging for: <span id="todayDateDisplay" class="font-mono font-bold"></span></p>
+                    <p class="text-xs text-indigo-500 mt-1">User ID: <span id="userIdDisplay" class="font-mono text-xs"></span></p>
+                </div>
+                <button onclick="appLogic.handleLogout()" class="text-xs text-red-500 hover:text-red-700 py-1 px-3 border border-red-300 rounded transition duration-150">Logout</button>
+            </div>
+
+            <!-- Mindset Card (Centerpiece) - KEPT THE SAME FOR MOTIVATION -->
+            <div id="believeCard" class="bg-white p-6 rounded-xl border-l-4 border-yellow-400 max-w-lg mx-auto mb-8 shadow-lg">
+                <div class="flex flex-col items-center justify-center">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-3">Commit 100%</h2>
+                    <p id="mindsetFeedback" class="text-gray-600 text-sm mb-4"></p>
+                    <button id="mindsetStatusBtn" onclick="appLogic.toggleMindsetStatus()" class="bg-yellow-400 hover:bg-yellow-500 text-white font-semibold py-3 px-6 rounded-full transition duration-150 shadow-md transform hover:scale-105">
+                        Affirm Commitment
+                    </button>
+                </div>
+            </div>
+
+            <!-- Growth Areas Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+
+                <!-- Pushups -->
+                <div id="pushupsCard" class="tracker-card bg-white p-6 border-l-4 border-green-400">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.433 9.498 5 8 5c-4 0-4 4-4 8 0 1.498.433 2.832 1.253 4M12 6.253c1.168-.82 2.502-1.253 4-1.253 4 0 4 4 4 8 0 1.498-.433 2.832-1.253 4"></path></svg>
+                        Total Pushups
+                    </h3>
+                    <label for="pushupsGoal" class="text-sm font-medium text-gray-500">Goal: Reps</label>
+                    <input type="number" id="pushupsGoal" onchange="appLogic.updateGoal('pushups', 'pushupsGoal')" value="50" min="1" class="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:ring-green-400 focus:border-green-400">
+                    <div class="mt-4">
+                        <p class="text-sm font-medium text-gray-700 mb-1">Daily Progress</p>
+                        <div class="flex items-center space-x-2">
+                            <input type="number" id="pushupsInput" placeholder="0" min="0" step="1" class="w-2/3 p-2 border border-gray-300 rounded-lg focus:ring-green-400 focus:border-green-400">
+                            <button onclick="appLogic.updateTracker('pushups', 'pushupsInput')" class="w-1/3 bg-green-400 hover:bg-green-500 text-white font-semibold py-2 rounded-lg transition duration-150">Log</button>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <p class="text-gray-700 text-sm font-medium">Progress: <span id="pushupsProgressText" class="font-bold">0%</span></p>
+                        <div class="w-full bg-gray-200 progress-bar mt-1">
+                            <div id="pushupsProgressBar" class="progress-bar bg-green-400" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Crunches -->
+                <div id="crunchesCard" class="tracker-card bg-white p-6 border-l-4 border-blue-400">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 14v5"></path></svg>
+                        Total Crunches
+                    </h3>
+                    <label for="crunchesGoal" class="text-sm font-medium text-gray-500">Goal: Reps</label>
+                    <input type="number" id="crunchesGoal" onchange="appLogic.updateGoal('crunches', 'crunchesGoal')" value="75" min="10" class="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:ring-blue-400 focus:border-blue-400">
+                    <div class="mt-4">
+                        <p class="text-sm font-medium text-gray-700 mb-1">Daily Progress</p>
+                        <div class="flex items-center space-x-2">
+                            <input type="number" id="crunchesInput" placeholder="0" min="0" class="w-2/3 p-2 border border-gray-300 rounded-lg focus:ring-blue-400 focus:border-blue-400">
+                            <button onclick="appLogic.updateTracker('crunches', 'crunchesInput')" class="w-1/3 bg-blue-400 hover:bg-blue-500 text-white font-semibold py-2 rounded-lg transition duration-150">Log</button>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <p class="text-gray-700 text-sm font-medium">Progress: <span id="crunchesProgressText" class="font-bold">0%</span></p>
+                        <div class="w-full bg-gray-200 progress-bar mt-1">
+                            <div id="crunchesProgressBar" class="progress-bar bg-blue-400" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Squats -->
+                <div id="squatsCard" class="tracker-card bg-white p-6 border-l-4 border-purple-400">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 4v12l-4-2-4 2V4M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        Total Squats
+                    </h3>
+                    <label for="squatsGoal" class="text-sm font-medium text-gray-500">Goal: Reps</label>
+                    <input type="number" id="squatsGoal" onchange="appLogic.updateGoal('squats', 'squatsGoal')" value="100" min="10" class="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:ring-purple-400 focus:border-purple-400">
+                    <div class="mt-4">
+                        <p class="text-sm font-medium text-gray-700 mb-1">Daily Progress</p>
+                        <div class="flex items-center space-x-2">
+                            <input type="number" id="squatsInput" placeholder="0" min="0" class="w-2/3 p-2 border border-gray-300 rounded-lg focus:ring-purple-400 focus:border-purple-400">
+                            <button onclick="appLogic.updateTracker('squats', 'squatsInput')" class="w-1/3 bg-purple-400 hover:bg-purple-500 text-white font-semibold py-2 rounded-lg transition duration-150">Log</button>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <p class="text-gray-700 text-sm font-medium">Progress: <span id="squatsProgressText" class="font-bold">0%</span></p>
+                        <div class="w-full bg-gray-200 progress-bar mt-1">
+                            <div id="squatsProgressBar" class="progress-bar bg-purple-400" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Taekwondo Stretching -->
+                <div id="taekwondoCard" class="tracker-card bg-white p-6 border-l-4 border-red-400">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>
+                        Taekwondo Stretching
+                    </h3>
+                    <label for="taekwondoGoal" class="text-sm font-medium text-gray-500">Goal: Minutes</label>
+                    <input type="number" id="taekwondoGoal" onchange="appLogic.updateGoal('taekwondo', 'taekwondoGoal')" value="15" min="5" class="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:ring-red-400 focus:border-red-400">
+                    <div class="mt-4">
+                        <p class="text-sm font-medium text-gray-700 mb-1">Daily Progress</p>
+                        <div class="flex items-center space-x-2">
+                            <input type="number" id="taekwondoInput" placeholder="0" min="0" step="1" class="w-2/3 p-2 border border-gray-300 rounded-lg focus:ring-red-400 focus:border-red-400">
+                            <button onclick="appLogic.updateTracker('taekwondo', 'taekwondoInput')" class="w-1/3 bg-red-400 hover:bg-red-500 text-white font-semibold py-2 rounded-lg transition duration-150">Log</button>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <p class="text-gray-700 text-sm font-medium">Progress: <span id="taekwondoProgressText" class="font-bold">0%</span></p>
+                        <div class="w-full bg-gray-200 progress-bar mt-1">
+                            <div id="taekwondoProgressBar" class="progress-bar bg-red-400" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- --- ANALYSIS SECTION (Charts) --- -->
+            <h2 class="text-2xl font-bold text-gray-800 text-center mb-6 pt-4 border-t border-gray-300">Analysis & Trends</h2>
+            
+            <!-- Period Selector -->
+            <div class="flex justify-center space-x-2 sm:space-x-4 mb-8 flex-wrap">
+                <button id="weekBtn" onclick="appLogic.setAnalysisPeriod('week')" class="period-btn py-2 px-4 sm:px-6 rounded-full text-sm sm:text-base text-gray-700 border border-gray-300 hover:bg-indigo-100 transition duration-150 mb-2">
+                    Compare Week
+                </button>
+                <button id="monthBtn" onclick="appLogic.setAnalysisPeriod('month')" class="period-btn py-2 px-4 sm:px-6 rounded-full text-sm sm:text-base text-gray-700 border border-gray-300 hover:bg-indigo-100 transition duration-150 mb-2">
+                    Compare Month
+                </button>
+                <button id="yearBtn" onclick="appLogic.setAnalysisPeriod('year')" class="period-btn py-2 px-4 sm:px-6 rounded-full text-sm sm:text-base text-gray-700 border border-gray-300 hover:bg-indigo-100 transition duration-150 mb-2">
+                    Compare Year
+                </button>
+                <button id="allBtn" onclick="appLogic.setAnalysisPeriod('all')" class="period-btn py-2 px-4 sm:px-6 rounded-full text-sm sm:text-base text-gray-700 border border-gray-300 hover:bg-indigo-100 transition duration-150 mb-2">
+                    Compare All Time
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-10">
+                <!-- Comparison Card -->
+                <div class="analysis-card border-t-4 border-indigo-500 lg:col-span-1 flex flex-col justify-center items-center text-center">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2">Growth Rate</h3>
+                    
+                    <div class="mb-4">
+                        <p id="currentPeriodLabel" class="text-xs text-gray-500 mb-1 font-bold"></p>
+                        <p class="text-5xl font-extrabold text-indigo-600" id="currentAvgScore">0%</p>
+                        <p class="text-sm text-gray-500">Current Avg.</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <p id="previousPeriodLabel" class="text-xs text-gray-500 mb-1 font-bold"></p>
+                        <p class="text-lg text-gray-800 font-medium" id="previousAvgScore">0%</p>
+                        <p class="text-sm text-gray-500">Previous Avg.</p>
+                    </div>
+                    
+                    <div class="mt-4 text-xl font-bold" id="scoreDifference">
+                        <!-- Difference text rendered by JS -->
+                    </div>
+                </div>
+
+                <!-- Chart Cards (3/4 of space on large screens) -->
+                <div class="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Pushups Chart (New ID) -->
+                    <div class="analysis-card h-64 md:h-72">
+                        <canvas id="pushupsChart"></canvas>
+                    </div>
+                    <!-- Crunches Chart (New ID) -->
+                    <div class="analysis-card h-64 md:h-72">
+                        <canvas id="crunchesChart"></canvas>
+                    </div>
+                    <!-- Squats Chart (New ID) -->
+                    <div class="analysis-card h-64 md:h-72">
+                        <canvas id="squatsChart"></canvas>
+                    </div>
+                    <!-- Taekwondo Chart (Moved here) -->
+                    <div class="analysis-card h-64 md:h-72 hidden md:block"> <!-- Hidden on small screens to fit 3 in a row, but will be drawn -->
+                        <canvas id="taekwondoChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <!-- --- END ANALYSIS SECTION --- -->
+
+
+            <!-- Reset Button -->
+            <div class="text-center mt-12 pb-4">
+                <button onclick="appLogic.resetDailyProgress()" class="text-sm text-gray-500 hover:text-red-500 transition duration-150 py-2 px-4 rounded-lg border border-gray-300 hover:border-red-500">
+                    Reset Daily Progress (Start a new day)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global instance variables for Firebase services and tracking state
+        let auth = null; 
+        let db = null;   
+
+        // --- USER'S HARDCODED CONFIGURATION (CRITICAL FIX: UPDATED WITH USER'S NEW KEYS) ---
+        const hardcodedFirebaseConfig = {
+            apiKey: "AIzaSyDqiw7UTiSPEDXDFRwZPBmBBWQ0sYlQLGg",
+            authDomain: "exercise-progress-tracker.firebaseapp.com",
+            projectId: "exercise-progress-tracker",
+            storageBucket: "exercise-progress-tracker.firebasestorage.app",
+            messagingSenderId: "1009491659527",
+            appId: "1:1009491659527:web:2488324d4c0cf441acd3a2",
+            // measurementId is optional and not needed for core functionality
+        };
+        
+        // Environment variables required for Canvas functionality
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : hardcodedFirebaseConfig.projectId; // Use project ID as fallback for appId
+
+        // App logic object to manage state and functions
+        const appLogic = {
+            // STATE
+            userId: null,
+            history: {}, 
+            dailyGoalData: {}, 
+            charts: {}, 
+            activePeriod: 'week',
+
+            // CONSTANTS - UPDATED FOR EXERCISE TRACKING
+            TRACKER_AREAS: ['pushups', 'crunches', 'squats', 'taekwondo', 'mindset'],
+            DEFAULT_GOALS: {
+                pushups: { progress: 0, goal: 50, unit: 'Reps' },
+                crunches: { progress: 0, goal: 75, unit: 'Reps' },
+                squats: { progress: 0, goal: 100, unit: 'Reps' },
+                taekwondo: { progress: 0, goal: 15, unit: 'Min' }, // Taekwondo Stretching
+                mindset: { status: 'Untoggled', is100: false, unit: 'Affirmed' },
+            },
+            
+            // --- UTILITIES & UI HELPERS (Same) ---
+            showStatusMessage(message, color) {
+                const statusMessage = document.getElementById('statusMessage');
+                statusMessage.textContent = message;
+                statusMessage.className = `fixed top-4 left-1/2 transform -translate-x-1/2 p-3 ${color} text-white rounded-lg shadow-xl z-50 text-sm opacity-100 transition-opacity duration-300`;
+                statusMessage.classList.remove('hidden');
+
+                setTimeout(() => {
+                    statusMessage.classList.remove('opacity-100');
+                    statusMessage.classList.add('opacity-0');
+                    setTimeout(() => statusMessage.classList.add('hidden'), 300);
+                }, 3000);
+            },
+
+            setLoading(isLoading) {
+                document.getElementById('loadingIndicator').classList.toggle('hidden', !isLoading);
+                document.getElementById('googleSignInBtn').disabled = isLoading;
+            },
+
+            getTodayDateKey() {
+                return moment().format('YYYY-MM-DD');
+            },
+
+            // --- AUTHENTICATION HANDLERS (Same) ---
+            async handleGoogleLogin() {
+                if (!auth) {
+                     appLogic.showStatusMessage('Initialization Failed. Please refresh.', 'bg-red-500');
+                     return;
+                }
+
+                appLogic.setLoading(true);
+
+                const provider = new firebase.auth.GoogleAuthProvider();
+                
+                provider.setCustomParameters({
+                    prompt: 'select_account' 
+                });
+
+                try {
+                    // Use signInWithPopup to avoid redirect timing issues
+                    await auth.signInWithPopup(provider);
+                } catch (error) {
+                    if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
+                        appLogic.showStatusMessage('Pop-up blocked or cancelled. Check browser settings.', 'bg-yellow-600');
+                    } else {
+                         appLogic.showStatusMessage(`Sign In Failed: ${error.message}`, 'bg-red-500');
+                    }
+                    appLogic.setLoading(false);
+                }
+            },
+
+            handleLogout() {
+                auth.signOut();
+                appLogic.showStatusMessage('Successfully logged out.', 'bg-gray-500');
+            },
+            
+            setUserId: (uid) => {
+                appLogic.userId = uid;
+                document.getElementById('userIdDisplay').textContent = uid ? uid : 'No User';
+                if (uid) {
+                    appLogic.setupDataListener();
+                }
+            },
+
+            // --- FIREBASE DATA SYNC (Same) ---
+            async setupDataListener() {
+                if (!appLogic.userId) return;
+
+                // CRITICAL FIX: Construct the full, secure, user-specific path
+                const docRef = db.collection('artifacts').doc(appId).collection('users').doc(appLogic.userId).collection('growthData').doc('history');
+
+                appLogic.setLoading(true);
+
+                try {
+                    // Use onSnapshot to listen for real-time updates
+                    docRef.onSnapshot(docSnapshot => {
+                        const data = docSnapshot.data() || {};
+                        
+                        appLogic.history = data.history || {};
+                        
+                        const todayKey = appLogic.getTodayDateKey();
+                        let dailyData = appLogic.history[todayKey] || {};
+
+                        appLogic.dailyGoalData = Object.assign({}, appLogic.DEFAULT_GOALS, dailyData);
+                        appLogic.dailyGoalData.date = todayKey; 
+
+                        appLogic.renderUI();
+                        appLogic.setLoading(false);
+                    }, error => {
+                        appLogic.showStatusMessage(`Database Error: ${error.message}`, 'bg-red-500');
+                        appLogic.setLoading(false);
+                    });
+                } catch (e) {
+                    appLogic.showStatusMessage('Failed to set up data listener.', 'bg-red-500');
+                    appLogic.setLoading(false);
+                }
+            },
+
+            async saveHistory() {
+                if (!appLogic.userId) {
+                    appLogic.showStatusMessage('Authentication required to save progress.', 'bg-red-500');
+                    return;
+                }
+
+                const todayKey = appLogic.getTodayDateKey();
+                
+                // Ensure all keys are present before saving
+                const dataToSave = {};
+                appLogic.TRACKER_AREAS.forEach(area => {
+                    dataToSave[area] = appLogic.dailyGoalData[area] || appLogic.DEFAULT_GOALS[area];
+                });
+                
+                appLogic.history[todayKey] = {
+                    ...dataToSave,
+                    date: todayKey
+                };
+
+                // CRITICAL FIX: Construct the full, secure, user-specific path
+                const docRef = db.collection('artifacts').doc(appId).collection('users').doc(appLogic.userId).collection('growthData').doc('history');
+
+                try {
+                    // Use set with merge: true to save the updated history map
+                    await docRef.set({ history: appLogic.history }, { merge: true });
+                } catch (e) {
+                    appLogic.showStatusMessage(`Save failed: ${e.message}`, 'bg-red-500');
+                }
+            },
+
+            // --- TRACKER LOGIC (Goal/Tracker/Mindset functions are structurally the same) ---
+            updateGoal(area, inputId) { 
+                const input = document.getElementById(inputId);
+                let goal = parseFloat(input.value);
+                if (isNaN(goal) || goal <= 0) {
+                    goal = appLogic.DEFAULT_GOALS[area].goal; 
+                    input.value = goal;
+                }
+                appLogic.dailyGoalData[area].goal = goal;
+                appLogic.saveHistory();
+                appLogic.showStatusMessage(`Goal for ${area} updated to ${goal} ${appLogic.DEFAULT_GOALS[area].unit}.`, 'bg-blue-500');
+            },
+
+            updateTracker(area, inputId) { 
+                const input = document.getElementById(inputId);
+                const value = parseFloat(input.value);
+
+                if (isNaN(value) || value <= 0) {
+                    appLogic.showStatusMessage('Please enter a valid positive number.', 'bg-red-500');
+                    return;
+                }
+                appLogic.dailyGoalData[area].progress += value;
+                input.value = ''; 
+                appLogic.saveHistory();
+                appLogic.showStatusMessage(`Logged ${value} ${appLogic.DEFAULT_GOALS[area].unit} for ${area}!`, 'bg-green-500');
+            },
+
+            toggleMindsetStatus() { 
+                const area = 'mindset';
+                appLogic.dailyGoalData[area].is100 = !appLogic.dailyGoalData[area].is100;
+                appLogic.saveHistory();
+                if (appLogic.dailyGoalData[area].is100) {
+                    appLogic.showStatusMessage('Commitment: 100% affirmed!', 'bg-yellow-400');
+                } else {
+                    appLogic.showStatusMessage('Commitment status reset.', 'bg-gray-500');
+                }
+            },
+
+            resetDailyProgress() { 
+                const todayKey = appLogic.getTodayDateKey();
+                const currentGoals = appLogic.dailyGoalData;
+                const newDailyData = {
+                    pushups: { progress: 0, goal: currentGoals.pushups.goal },
+                    crunches: { progress: 0, goal: currentGoals.crunches.goal },
+                    squats: { progress: 0, goal: currentGoals.squats.goal },
+                    taekwondo: { progress: 0, goal: currentGoals.taekwondo.goal },
+                    mindset: { status: 'Untoggled', is100: false },
+                    date: todayKey
+                };
+                appLogic.dailyGoalData = newDailyData; 
+                appLogic.saveHistory();
+                appLogic.showStatusMessage('Daily progress reset! New day, new opportunities!', 'bg-blue-600');
+            },
+
+            // --- RENDER UI (Updated IDs) ---
+            renderUI() { 
+                document.getElementById('todayDateDisplay').textContent = moment().format('ddd, MMM D, YYYY');
+                
+                appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').forEach(area => {
+                    const data = appLogic.dailyGoalData[area];
+                    const goal = data.goal || appLogic.DEFAULT_GOALS[area].goal;
+                    const progress = data.progress || 0;
+                    document.getElementById(`${area}Goal`).value = goal;
+                    const progressPercent = Math.min(100, (progress / goal) * 100);
+                    const progressBar = document.getElementById(`${area}ProgressBar`);
+                    const progressText = document.getElementById(`${area}ProgressText`);
+                    const card = document.getElementById(`${area}Card`);
+
+                    progressBar.style.width = `${progressPercent}%`;
+                    progressText.textContent = `${progress} / ${goal} (${Math.round(progressPercent)}%)`;
+
+                    card.classList.remove('ring-2', 'ring-offset-2', 'ring-green-400', 'ring-offset-white');
+                    progressBar.classList.remove('!bg-green-600', '!bg-blue-600', '!bg-purple-600', '!bg-red-600');
+
+                    if (progressPercent >= 100) {
+                        // Use the default color for the area, but make the card glow/progress bar darker green
+                        let cardRingColor;
+                        switch (area) {
+                            case 'pushups': cardRingColor = 'ring-green-400'; progressBar.classList.add('!bg-green-600'); break;
+                            case 'crunches': cardRingColor = 'ring-blue-400'; progressBar.classList.add('!bg-blue-600'); break;
+                            case 'squats': cardRingColor = 'ring-purple-400'; progressBar.classList.add('!bg-purple-600'); break;
+                            case 'taekwondo': cardRingColor = 'ring-red-400'; progressBar.classList.add('!bg-red-600'); break;
+                            default: cardRingColor = 'ring-green-400'; progressBar.classList.add('!bg-green-600');
+                        }
+
+                        card.classList.add('ring-2', 'ring-offset-2', cardRingColor, 'ring-offset-white');
+                    }
+                });
+
+                const mindsetBtn = document.getElementById('mindsetStatusBtn');
+                const mindsetFeedback = document.getElementById('mindsetFeedback');
+                const mindsetData = appLogic.dailyGoalData['mindset'];
+                const is100 = mindsetData ? mindsetData.is100 : false;
+
+                if (is100) {
+                    mindsetBtn.textContent = 'COMMITMENT Locked';
+                    mindsetBtn.classList.remove('bg-yellow-400', 'hover:bg-yellow-500');
+                    mindsetBtn.classList.add('bg-green-500', 'hover:bg-green-600');
+                    mindsetFeedback.innerHTML = '<span class="status-badge bg-green-100 text-green-700">Commitment is Locked In!</span>';
+                } else {
+                    mindsetBtn.textContent = 'Affirm Commitment';
+                    mindsetBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
+                    mindsetBtn.classList.add('bg-yellow-400', 'hover:bg-yellow-500');
+                    mindsetFeedback.innerHTML = '<span class="status-badge bg-yellow-100 text-yellow-700">Awaiting Affirmation</span>';
+                }
+
+                appLogic.setAnalysisPeriod(appLogic.activePeriod);
+            },
+            
+            // --- ANALYSIS & CHARTING (Updated Logic) ---
+            setAnalysisPeriod(period) {
+                appLogic.activePeriod = period;
+                document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('period-active'));
+                const activeBtn = document.getElementById(`${period}Btn`);
+                if (activeBtn) { activeBtn.classList.add('period-active'); }
+                appLogic.renderAnalysis();
+            },
+
+            getAnalysisDuration() { 
+                const today = moment().startOf('day');
+                let duration, previousDuration;
+                switch (appLogic.activePeriod) {
+                    case 'week': duration = 7; previousDuration = 7; break;
+                    case 'month': duration = 30; previousDuration = 30; break;
+                    case 'year': duration = 365; previousDuration = 365; break;
+                    case 'all':
+                        const historyDates = Object.keys(appLogic.history).sort();
+                        if (historyDates.length === 0) { duration = 1; previousDuration = 0; break; }
+                        const firstDay = moment(historyDates[0], 'YYYY-MM-DD');
+                        const totalDays = today.diff(firstDay, 'days') + 1;
+                        duration = Math.ceil(totalDays / 2); previousDuration = Math.floor(totalDays / 2); 
+                        break;
+                    default: duration = 7; previousDuration = 7;
+                }
+                return { duration, previousDuration };
+            },
+            getDailyPerformance(duration, endDate, startDate) { 
+                const dailyData = {};
+                // Exclude mindset for the score
+                const areaKeys = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset'); 
+                const end = endDate || moment().startOf('day');
+                const start = startDate || moment(end).subtract(duration - 1, 'days').startOf('day');
+                
+                const datesInPeriod = [];
+                for (let date = moment(start); date.isSameOrBefore(end); date.add(1, 'days')) {
+                    datesInPeriod.push(date.format('YYYY-MM-DD'));
+                }
+
+                datesInPeriod.forEach(dateKey => {
+                    const data = appLogic.history[dateKey];
+                    const result = {};
+                    areaKeys.forEach(area => {
+                        const areaData = data && data[area] ? data[area] : appLogic.DEFAULT_GOALS[area];
+                        const progress = areaData.progress || 0;
+                        const goal = areaData.goal || appLogic.DEFAULT_GOALS[area].goal;
+                        const completion = Math.min(100, (progress / goal) * 100);
+                        result[area] = completion;
+                    });
+                    dailyData[dateKey] = result;
+                });
+                return dailyData;
+            },
+            calculateAverages(periodData) { 
+                const areaKeys = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset'); 
+                const total = areaKeys.reduce((acc, area) => ({ ...acc, [area]: 0 }), {});
+                const days = Object.keys(periodData).length;
+                Object.values(periodData).forEach(day => {
+                    areaKeys.forEach(area => {
+                         total[area] += day[area] || 0;
+                    });
+                });
+                const avg = {};
+                areaKeys.forEach(area => {
+                    avg[area] = days > 0 ? (total[area] / days) : 0;
+                });
+                const overallAvg = days > 0 ? (Object.values(avg).reduce((sum, val) => sum + val, 0) / areaKeys.length) : 0;
+                return { avg: avg, overallAvg: overallAvg, days: days };
+            },
+            renderAnalysis() { 
+                const { duration, previousDuration } = appLogic.getAnalysisDuration();
+                const today = moment().startOf('day');
+                let currentPeriodEnd = today;
+                let currentPeriodStart = moment(today).subtract(duration - 1, 'days');
+                let previousPeriodEnd = moment(currentPeriodStart).subtract(1, 'second');
+                let previousPeriodStart = moment(previousPeriodEnd).subtract(previousDuration - 1, 'days');
+                const currentDataRaw = appLogic.getDailyPerformance(duration, currentPeriodEnd, currentPeriodStart);
+                const previousDataRaw = appLogic.getDailyPerformance(previousDuration, previousPeriodEnd, previousPeriodStart);
+                const currentAverages = appLogic.calculateAverages(currentDataRaw);
+                const previousAverages = appLogic.calculateAverages(previousDataRaw);
+                const currentAvgScore = Math.round(currentAverages.overallAvg);
+                const previousAvgScore = Math.round(previousAverages.overallAvg);
+                const diff = currentAvgScore - previousAvgScore;
+
+                document.getElementById('currentPeriodLabel').textContent = `${appLogic.activePeriod === 'all' ? 'Second Half' : 'Current Period'} (${currentAverages.days} Days)`;
+                document.getElementById('previousPeriodLabel').textContent = `${appLogic.activePeriod === 'all' ? 'First Half' : 'Previous Period'} (${previousAverages.days} Days)`;
+                document.getElementById('currentAvgScore').textContent = `${currentAvgScore}%`;
+                document.getElementById('previousAvgScore').textContent = `${previousAvgScore}%`;
+                
+                const diffElement = document.getElementById('scoreDifference');
+                diffElement.innerHTML = `${diff > 0 ? '↑' : diff < 0 ? '↓' : '→'} ${Math.abs(diff)}%`;
+                diffElement.classList.toggle('text-green-600', diff >= 0);
+                diffElement.classList.toggle('text-red-600', diff < 0);
+                
+                const labels = Array.from({ length: currentAverages.days }, (_, i) => moment(currentPeriodStart).add(i, 'days').format('MM/DD'));
+                
+                appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').forEach(area => {
+                    const currentTrend = labels.map(label => currentDataRaw[moment(label, 'MM/DD').format('YYYY-MM-DD')] ? currentDataRaw[moment(label, 'MM/DD').format('YYYY-MM-DD')][area] : NaN);
+                    const previousKeys = Object.keys(previousDataRaw).sort();
+                    const previousTrend = Array.from({ length: labels.length }, (_, i) => {
+                        const prevDateKey = previousKeys[i];
+                        return previousDataRaw[prevDateKey] ? previousDataRaw[prevDateKey][area] : NaN;
+                    });
+                    appLogic.drawChart(area, labels, currentTrend, previousTrend);
+                });
+            },
+
+            drawChart(area, labels, currentTrend, previousTrend) { 
+                if (appLogic.charts[area]) { appLogic.charts[area].destroy(); }
+                const ctx = document.getElementById(`${area}Chart`);
+                if (!ctx) return; // Guard in case the Taekwondo chart is not visible
+                const context = ctx.getContext('2d');
+
+                let color, label;
+                switch (area) {
+                    case 'pushups': color = 'rgba(52, 211, 153, 1)'; label = 'Pushup Progress'; break;
+                    case 'crunches': color = 'rgba(96, 165, 250, 1)'; label = 'Crunch Progress'; break;
+                    case 'squats': color = 'rgba(167, 139, 250, 1)'; label = 'Squat Progress'; break;
+                    case 'taekwondo': color = 'rgba(248, 113, 113, 1)'; label = 'Taekwondo Stretch'; break;
+                }
+                appLogic.charts[area] = new Chart(context, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'Current Period', data: currentTrend, borderColor: color, backgroundColor: color.replace('1)', '0.1)'), fill: true, tension: 0.2, pointRadius: 3, borderWidth: 3 },
+                            { label: 'Previous Period', data: previousTrend, borderColor: color.replace('1)', '0.5)'), backgroundColor: 'transparent', borderDash: [5, 5], fill: false, tension: 0.2, pointRadius: 0, borderWidth: 2 }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            title: { display: true, text: label, color: '#4B5563', padding: { top: 10, bottom: 5 } }
+                        },
+                        scales: {
+                            x: { grid: { display: false }, ticks: { autoSkip: true, maxRotation: 0, minRotation: 0 } },
+                            y: { min: 0, max: 100, title: { display: true, text: 'Completion (%)' } }
+                        }
+                    }
+                });
+            }
+        };
+
+
+        // --- INITIALIZATION (Same) ---
+        window.onload = async function() {
+            firebase.setLogLevel('debug');
+            
+            // 1. Initialize Firebase App (CRITICAL FIX: Uses the hardcoded config you provided)
+            try {
+                // Initialize using the hardcoded config object
+                const app = firebase.initializeApp(hardcodedFirebaseConfig);
+                auth = app.auth();
+                db = app.firestore();
+            } catch (e) {
+                console.error("FATAL: Firebase Initialization Error (Using Hardcoded Keys):", e);
+                appLogic.showStatusMessage('FATAL: Initialization failed. (Check console for API key error)', 'bg-red-900');
+                return;
+            }
+
+            let authStateHandled = false;
+            appLogic.setLoading(true);
+
+            // 2. Attempt automatic sign-in (Custom Token or Anonymous)
+            try {
+                if (initialAuthToken) {
+                    await auth.signInWithCustomToken(initialAuthToken);
+                } else {
+                    await auth.signInAnonymously();
+                }
+            } catch (e) {
+                console.error("Initial Auth Error (Expected on first run):", e);
+            }
+            
+            // 3. Add a Timeout Fallback (The Fix for the "Loading" loop)
+            const loadingTimeout = setTimeout(() => {
+                if (!authStateHandled) {
+                    appLogic.setLoading(false);
+                    document.getElementById('authContainer').classList.remove('hidden');
+                    document.getElementById('googleSignInBtn').disabled = false;
+                    appLogic.showStatusMessage('Automatic sign-in failed. Please sign in with Google.', 'bg-yellow-600');
+                }
+            }, 5000); // 5 second grace period
+
+            // 4. Main Auth Listener: This is the SINGLE SOURCE OF TRUTH for UI visibility.
+            auth.onAuthStateChanged((user) => {
+                clearTimeout(loadingTimeout); // Cancel the fallback if the listener fires
+                authStateHandled = true;
+
+                appLogic.setLoading(false); 
+                document.getElementById('googleSignInBtn').disabled = false; 
+
+                if (user) {
+                    appLogic.setUserId(user.uid);
+                    // Show the Tracker
+                    document.getElementById('authContainer').classList.add('hidden');
+                    document.getElementById('trackerAppContainer').classList.remove('hidden');
+                    appLogic.showStatusMessage('Successfully loaded dashboard.', 'bg-indigo-600');
+                } else {
+                    appLogic.setUserId(null); 
+                    // Show the Sign-In Screen
+                    document.getElementById('authContainer').classList.remove('hidden');
+                    document.getElementById('trackerAppContainer').classList.add('hidden');
+                }
+            });
+        };
+    </script>
+
+</body>
+</html>
