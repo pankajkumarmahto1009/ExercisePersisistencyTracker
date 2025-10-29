@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exercise Persistency Tracker</title>
+    
+    <!-- PWA / Icon Setup (UPDATED WITH YOUR BLOGGER IMAGE LINK) -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgoBMwmUtsrDIRDuc6h1GyYpKuI2bN9H2A_QzFSXQBd831PsPx7jcI6cQzG4Hu4VoP6gOVtER_C2_bFkbrMc_luHEWi5X4Uq3ksO8LqXVOR-E_KJLNOLV_OUmOHggCEZ83sMvV9A6PccY_G-18lFP0Q9NgNmNarH9QgSdWq02gOWnRXo2O419pSFb-X-zA/s1024/1000134900.jpg" sizes="192x192">
+    <meta name="theme-color" content="#4F46E5">
+    
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Load Chart.js for graphs -->
@@ -288,8 +294,6 @@
         let db = null;   
 
         // --- FIREBASE CONFIGURATION (USING YOUR NEW PROJECT KEYS) ---
-        // NOTE: This uses the configuration we finalized previously. If you are using a different Firebase project than 
-        // "exercise-progress-tracker", you MUST update these 6 values.
         const hardcodedFirebaseConfig = {
             apiKey: "AIzaSyDqiw7UTiSPEDXDFRwZPBmBBWQ0sYlQLGg",
             authDomain: "exercise-progress-tracker.firebaseapp.com",
@@ -300,7 +304,7 @@
         };
         
         // Environment variables required for Canvas functionality
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initialAuthToken : null;
         const appId = typeof __app_id !== 'undefined' ? __app_id : hardcodedFirebaseConfig.projectId;
 
         // App logic object to manage state and functions
@@ -483,8 +487,7 @@
                     appLogic.showStatusMessage('Commitment status reset.', 'bg-gray-500');
                 }
             },
-            // Removed toggleSocialCheck as 'character' area is removed.
-
+            
             resetDailyProgress() { 
                 const todayKey = appLogic.getTodayDateKey();
                 const currentGoals = appLogic.dailyGoalData;
@@ -747,7 +750,6 @@
                     document.getElementById('trackerAppContainer').classList.remove('hidden');
                     appLogic.showStatusMessage('Successfully loaded dashboard.', 'bg-indigo-600');
                 } else {
-                    appLogic.setUserId(null); 
                     document.getElementById('authContainer').classList.remove('hidden');
                     document.getElementById('trackerAppContainer').classList.add('hidden');
                 }
