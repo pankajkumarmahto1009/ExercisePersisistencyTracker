@@ -1,0 +1,21 @@
+{
+  "name": "Exercise Progress Tracker",
+  "short_name": "My Fitness",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4F46E5",
+  "description": "Track your Pushups, Crunches, Squats, and Taekwondo Stretching progress.",
+  "icons": [
+    {
+      "src": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgoBMwmUtsrDIRDuc6h1GyYpKuI2bN9H2A_QzFSXQBd831PsPx7jcI6cQzG4Hu4VoP6gOVtER_C2_bFkbrMc_luHEWi5X4Uq3ksO8LqXVOR-E_KJLNOLV_OUmOHggCEZ83sMvV9A6PccY_G-18lFP0Q9NgNmNarH9QgSdWq02gOWnRXo2O419pSFb-X-zA/s1024/1000134900.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgoBMwmUtsrDIRDuc6h1GyYpKuI2bN9H2A_QzFSXQBd831PsPx7jcI6cQzG4Hu4VoP6gOVtER_C2_bFkbrMc_luHEWi5X4Uq3ksO8LqXVOR-E_KJLNOLV_OUmOHggCEZ83sMvV9A6PccY_G-18lFP0Q9NgNmNarH9QgSdWq02gOWnRXo2O419pSFb-X-zA/s1024/1000134900.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}
