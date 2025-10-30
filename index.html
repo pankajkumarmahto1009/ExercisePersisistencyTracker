@@ -5,19 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exercise Persistency Tracker</title>
     
-    <!-- PWA / Icon Setup (UPDATED WITH YOUR BLOGGER IMAGE LINK) -->
     <link rel="manifest" href="/manifest.json">
-    <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgoBMwmUtsrDIRDuc6h1GyYpKuI2bN9H2A_QzFSXQBd831PsPx7jcI6cQzG4Hu4VoP6gOVtER_C2_bFkbrMc_luHEWi5X4Uq3ksO8LqXVOR-E_KJLNOLV_OUmOHggCEZ83sMvV9A6PccY_G-18lFP0Q9NgNmNarH9QgSdWq02gOWnRXo2O419pSFb-X-zA/s1024/1000134900.jpg" sizes="192x192">
+    <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgoBMwmUtsrDIRDuc6h1GyYpKuI2bN9H2A_QzFSXQBd831PsPx7jcI6cQzG4Hu4VoP6gOVtER_C2_bFfbrMc_luHEWi5X4Uq3ksO8LqXVOR-E_KJLNOLV_OUmOHggCEZ83sMvV9A6PccY_G-18lFP0Q9NgNmNarH9QgSdWq02gOWnRXo2O419pSFb-X-zA/s1024/1000134900.jpg" sizes="192x192">
     <meta name="theme-color" content="#4F46E5">
     
-    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Load Chart.js for graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
-    <!-- Load Moment.js for date calculations -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
 
-    <!-- Firebase SDKs (Using compat versions for simplicity) -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -76,16 +71,13 @@
             <p class="text-lg text-gray-500 mt-1">Consistency is Key (Cloud Synced).</p>
         </header>
 
-        <!-- Status Message -->
         <div id="statusMessage" class="hidden fixed top-4 left-1/2 transform -translate-x-1/2 p-3 bg-gray-800 text-white rounded-lg shadow-xl z-50 text-sm opacity-0 transition-opacity duration-300"></div>
         
-        <!-- LOADING INDICATOR (Visible by default until state is determined by JS) -->
         <div id="loadingIndicator" class="fixed inset-0 bg-white/75 flex items-center justify-center z-50">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
             <span class="ml-4 text-indigo-700 font-semibold">Syncing Data...</span>
         </div>
 
-        <!-- AUTHENTICATION CONTAINER (Hidden by default) -->
         <div id="authContainer" class="max-w-md mx-auto my-16 p-8 bg-white rounded-xl shadow-2xl border border-gray-100 text-center hidden">
             <h2 class="text-3xl font-bold text-gray-800 mb-6">Welcome!</h2>
             <p class="text-gray-600 mb-6">Sign in to sync your progress across all devices.</p>
@@ -96,9 +88,7 @@
             </button>
         </div>
 
-        <!-- MAIN TRACKER CONTAINER (Hidden until login) -->
         <div id="trackerAppContainer" class="max-w-6xl mx-auto hidden">
-            <!-- Today's Date Display -->
             <div class="text-center mb-8 p-3 bg-indigo-50 border-b border-indigo-200 rounded-lg max-w-lg mx-auto flex justify-between items-center">
                 <div class="text-left">
                     <p class="text-sm text-indigo-700 font-medium">Logging for: <span id="todayDateDisplay" class="font-mono font-bold"></span></p>
@@ -107,7 +97,6 @@
                 <button onclick="appLogic.handleLogout()" class="text-xs text-red-500 hover:text-red-700 py-1 px-3 border border-red-300 rounded transition duration-150">Logout</button>
             </div>
 
-            <!-- Mindset Card (Centerpiece) - Renamed for commitment -->
             <div id="believeCard" class="bg-white p-6 rounded-xl border-l-4 border-yellow-400 max-w-lg mx-auto mb-8 shadow-lg">
                 <div class="flex flex-col items-center justify-center">
                     <h2 class="text-3xl font-bold text-gray-800 mb-3">Commit 100%</h2>
@@ -118,10 +107,32 @@
                 </div>
             </div>
 
-            <!-- Growth Areas Grid - NEW EXERCISE CATEGORIES -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+            <div id="customGoalCreator" class="max-w-xl mx-auto mb-8 p-6 bg-indigo-50 rounded-xl shadow-lg border border-indigo-200">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Add a Custom Goal
+                </h2>
+                <div class="space-y-4">
+                    <input type="text" id="customGoalName" placeholder="e.g., Pullups, Reading" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-400 focus:border-indigo-400">
+                    <div class="flex space-x-4">
+                        <input type="number" id="customGoalTarget" placeholder="Target Value (e.g., 20 or 30)" min="1" value="30" class="w-1/2 p-2 border border-gray-300 rounded-lg focus:ring-indigo-400 focus:border-indigo-400">
+                        <select id="customGoalUnit" class="w-1/2 p-2 border border-gray-300 rounded-lg focus:ring-indigo-400 focus:border-indigo-400 bg-white">
+                            <option value="Reps">Reps</option>
+                            <option value="Min">Minutes</option>
+                            <option value="Pages">Pages</option>
+                            <option value="Units">Units</option>
+                        </select>
+                    </div>
+                    <button onclick="appLogic.addCustomGoal()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg transition duration-150 shadow-md">
+                        Add New Tracker
+                    </button>
+                </div>
+            </div>
 
-                <!-- Pushups (Replacing Academic) -->
+            <div id="customGoalsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+                </div>
+            
+            <div id="fixedGoalsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
                 <div id="pushupsCard" class="tracker-card bg-white p-6 border-l-4 border-green-400">
                     <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.433 9.498 5 8 5c-4 0-4 4-4 8 0 1.498.433 2.832 1.253 4M12 6.253c1.168-.82 2.502-1.253 4-1.253 4 0 4 4 4 8 0 1.498-.433 2.832-1.253 4"></path></svg>
@@ -144,7 +155,6 @@
                     </div>
                 </div>
 
-                <!-- Crunches (Replacing Daily Workout) -->
                 <div id="crunchesCard" class="tracker-card bg-white p-6 border-l-4 border-blue-400">
                     <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 14v5"></path></svg>
@@ -167,7 +177,6 @@
                     </div>
                 </div>
 
-                <!-- Squats (Replacing Personality & Social) -->
                 <div id="squatsCard" class="tracker-card bg-white p-6 border-l-4 border-purple-400">
                     <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 4v12l-4-2-4 2V4M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -190,7 +199,6 @@
                     </div>
                 </div>
 
-                <!-- Taekwondo Stretching (Replacing Placeholder/Future Area) -->
                 <div id="taekwondoCard" class="tracker-card bg-white p-6 border-l-4 border-red-400">
                     <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>
@@ -212,13 +220,10 @@
                         </div>
                     </div>
                 </div>
-
             </div>
 
-            <!-- --- ANALYSIS SECTION (Charts) --- -->
             <h2 class="text-2xl font-bold text-gray-800 text-center mb-6 pt-4 border-t border-gray-300">Analysis & Trends</h2>
             
-            <!-- Period Selector -->
             <div class="flex justify-center space-x-2 sm:space-x-4 mb-8 flex-wrap">
                 <button id="weekBtn" onclick="appLogic.setAnalysisPeriod('week')" class="period-btn py-2 px-4 sm:px-6 rounded-full text-sm sm:text-base text-gray-700 border border-gray-300 hover:bg-indigo-100 transition duration-150 mb-2">
                     Compare Week
@@ -235,7 +240,6 @@
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-10">
-                <!-- Comparison Card -->
                 <div class="analysis-card border-t-4 border-indigo-500 lg:col-span-1 flex flex-col justify-center items-center text-center">
                     <h3 class="text-lg font-semibold text-gray-700 mb-2">Growth Rate</h3>
                     
@@ -252,34 +256,12 @@
                     </div>
                     
                     <div class="mt-4 text-xl font-bold" id="scoreDifference">
-                        <!-- Difference text rendered by JS -->
-                    </div>
+                        </div>
                 </div>
 
-                <!-- Chart Cards (3/4 of space on large screens) -->
-                <div class="lg:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <!-- Pushups Chart -->
-                    <div class="analysis-card h-64 md:h-72">
-                        <canvas id="pushupsChart"></canvas>
+                <div id="chartGrid" class="lg:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-6">
                     </div>
-                    <!-- Crunches Chart -->
-                    <div class="analysis-card h-64 md:h-72">
-                        <canvas id="crunchesChart"></canvas>
-                    </div>
-                    <!-- Squats Chart -->
-                    <div class="analysis-card h-64 md:h-72">
-                        <canvas id="squatsChart"></canvas>
-                    </div>
-                    <!-- Taekwondo Chart -->
-                    <div class="analysis-card h-64 md:h-72">
-                        <canvas id="taekwondoChart"></canvas>
-                    </div>
-                </div>
             </div>
-            <!-- --- END ANALYSIS SECTION --- -->
-
-
-            <!-- Reset Button -->
             <div class="text-center mt-12 pb-4">
                 <button onclick="appLogic.resetDailyProgress()" class="text-sm text-gray-500 hover:text-red-500 transition duration-150 py-2 px-4 rounded-lg border border-gray-300 hover:border-red-500">
                     Reset Daily Progress (Start a new day)
@@ -315,14 +297,16 @@
             dailyGoalData: {}, 
             charts: {}, 
             activePeriod: 'week',
+            customGoals: [], // New array to track custom goal IDs
 
             // CONSTANTS - UPDATED FOR EXERCISE TRACKING
+            // TRACKER_AREAS will now only contain the hardcoded goals + 'mindset'
             TRACKER_AREAS: ['pushups', 'crunches', 'squats', 'taekwondo', 'mindset'],
             DEFAULT_GOALS: {
-                pushups: { progress: 0, goal: 50, unit: 'Reps' },
-                crunches: { progress: 0, goal: 75, unit: 'Reps' },
-                squats: { progress: 0, goal: 100, unit: 'Reps' },
-                taekwondo: { progress: 0, goal: 15, unit: 'Min' }, // Taekwondo Stretching
+                pushups: { progress: 0, goal: 50, unit: 'Reps', color: 'green' },
+                crunches: { progress: 0, goal: 75, unit: 'Reps', color: 'blue' },
+                squats: { progress: 0, goal: 100, unit: 'Reps', color: 'purple' },
+                taekwondo: { progress: 0, goal: 15, unit: 'Min', color: 'red' }, // Taekwondo Stretching
                 mindset: { status: 'Untoggled', is100: false, unit: 'Affirmed' },
             },
             
@@ -389,7 +373,7 @@
                 }
             },
 
-            // --- FIREBASE DATA SYNC (Unchanged from original code) ---
+            // --- FIREBASE DATA SYNC (Updated to handle custom goals) ---
             async setupDataListener() {
                 if (!appLogic.userId) return;
 
@@ -406,8 +390,28 @@
                         const todayKey = appLogic.getTodayDateKey();
                         let dailyData = appLogic.history[todayKey] || {};
 
-                        // Use Object.assign to merge daily data with new DEFAULT_GOALS structure
+                        // Step 1: Initialize today's data with defaults
                         appLogic.dailyGoalData = Object.assign({}, appLogic.DEFAULT_GOALS, dailyData);
+                        
+                        // Step 2: Extract any custom goals saved today or previously
+                        appLogic.customGoals = []; // Reset the list
+                        
+                        // Identify all unique areas (fixed + custom) from today's data
+                        const allAreas = Object.keys(appLogic.dailyGoalData).filter(area => 
+                            !appLogic.TRACKER_AREAS.includes(area) && area !== 'date'
+                        );
+
+                        // If dailyData has custom goals, check for their presence and add to customGoals array
+                        allAreas.forEach(area => {
+                            if (appLogic.dailyGoalData[area] && appLogic.dailyGoalData[area].unit) {
+                                appLogic.customGoals.push(area);
+                                // Ensure it has a color for charting
+                                if (!appLogic.dailyGoalData[area].color) {
+                                    appLogic.dailyGoalData[area].color = 'indigo'; // Default color for custom goals
+                                }
+                            }
+                        });
+
                         appLogic.dailyGoalData.date = todayKey; 
 
                         appLogic.renderUI();
@@ -430,10 +434,17 @@
 
                 const todayKey = appLogic.getTodayDateKey();
                 
-                // Ensure all keys are present before saving
+                // Ensure all fixed and custom keys are present before saving
                 const dataToSave = {};
+                
+                // Include fixed goals
                 appLogic.TRACKER_AREAS.forEach(area => {
                     dataToSave[area] = appLogic.dailyGoalData[area] || appLogic.DEFAULT_GOALS[area];
+                });
+                
+                // Include custom goals
+                appLogic.customGoals.forEach(area => {
+                    dataToSave[area] = appLogic.dailyGoalData[area]; // Data is already loaded/created
                 });
 
                 appLogic.history[todayKey] = {
@@ -455,12 +466,14 @@
                 const input = document.getElementById(inputId);
                 let goal = parseFloat(input.value);
                 if (isNaN(goal) || goal <= 0) {
-                    goal = appLogic.DEFAULT_GOALS[area].goal; 
+                    // Check if it's a fixed goal or default to 30 for custom
+                    const defaultGoal = appLogic.DEFAULT_GOALS[area] ? appLogic.DEFAULT_GOALS[area].goal : 30; 
+                    goal = defaultGoal;
                     input.value = goal;
                 }
                 appLogic.dailyGoalData[area].goal = goal;
                 appLogic.saveHistory();
-                appLogic.showStatusMessage(`Goal for ${area} updated to ${goal} ${appLogic.DEFAULT_GOALS[area].unit}.`, 'bg-blue-500');
+                appLogic.showStatusMessage(`Goal for ${area} updated to ${goal} ${appLogic.dailyGoalData[area].unit}.`, 'bg-blue-500');
             },
 
             updateTracker(area, inputId) { 
@@ -471,10 +484,10 @@
                     appLogic.showStatusMessage('Please enter a valid positive number.', 'bg-red-500');
                     return;
                 }
-                appLogic.dailyGoalData[area].progress += value;
+                appLogic.dailyGoalData[area].progress = (appLogic.dailyGoalData[area].progress || 0) + value;
                 input.value = ''; 
                 appLogic.saveHistory();
-                appLogic.showStatusMessage(`Logged ${value} ${appLogic.DEFAULT_GOALS[area].unit} for ${area}!`, 'bg-green-500');
+                appLogic.showStatusMessage(`Logged ${value} ${appLogic.dailyGoalData[area].unit} for ${area}!`, 'bg-green-500');
             },
 
             toggleMindsetStatus() { 
@@ -491,48 +504,149 @@
             resetDailyProgress() { 
                 const todayKey = appLogic.getTodayDateKey();
                 const currentGoals = appLogic.dailyGoalData;
-                const newDailyData = {
-                    pushups: { progress: 0, goal: currentGoals.pushups.goal },
-                    crunches: { progress: 0, goal: currentGoals.crunches.goal },
-                    squats: { progress: 0, goal: currentGoals.squats.goal },
-                    taekwondo: { progress: 0, goal: currentGoals.taekwondo.goal },
-                    mindset: { status: 'Untoggled', is100: false },
-                    date: todayKey
-                };
+                const newDailyData = { date: todayKey };
+                
+                // Reset fixed goals, keeping their goal value
+                appLogic.TRACKER_AREAS.forEach(area => {
+                    if (area !== 'mindset') {
+                        newDailyData[area] = { progress: 0, goal: currentGoals[area].goal, unit: currentGoals[area].unit, color: currentGoals[area].color };
+                    } else {
+                        newDailyData[area] = { status: 'Untoggled', is100: false };
+                    }
+                });
+
+                // Reset custom goals, keeping their goal value and unit
+                appLogic.customGoals.forEach(area => {
+                    newDailyData[area] = { progress: 0, goal: currentGoals[area].goal, unit: currentGoals[area].unit, color: currentGoals[area].color };
+                });
+
                 appLogic.dailyGoalData = newDailyData; 
                 appLogic.saveHistory();
                 appLogic.showStatusMessage('Daily progress reset! New day, new opportunities!', 'bg-blue-600');
             },
+            
+            // NEW: Function to dynamically generate a tracker card HTML
+            renderCard(area, data, label, cardColor, svgPath) {
+                const colorCode = data.color || 'indigo'; // Fallback to indigo
+                const cardHtml = `
+                    <div id="${area}Card" class="tracker-card bg-white p-6 border-l-4 border-${colorCode}-400">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-${colorCode}-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${svgPath}</svg>
+                            ${label}
+                        </h3>
+                        <label for="${area}Goal" class="text-sm font-medium text-gray-500">Goal: ${data.unit}</label>
+                        <input type="number" id="${area}Goal" onchange="appLogic.updateGoal('${area}', '${area}Goal')" value="${data.goal}" min="1" class="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:ring-${colorCode}-400 focus:border-${colorCode}-400">
+                        <div class="mt-4">
+                            <p class="text-sm font-medium text-gray-700 mb-1">Daily Progress</p>
+                            <div class="flex items-center space-x-2">
+                                <input type="number" id="${area}Input" placeholder="0" min="0" step="1" class="w-2/3 p-2 border border-gray-300 rounded-lg focus:ring-${colorCode}-400 focus:border-${colorCode}-400">
+                                <button onclick="appLogic.updateTracker('${area}', '${area}Input')" class="w-1/3 bg-${colorCode}-400 hover:bg-${colorCode}-500 text-white font-semibold py-2 rounded-lg transition duration-150">Log</button>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <p class="text-gray-700 text-sm font-medium">Progress: <span id="${area}ProgressText" class="font-bold">0%</span></p>
+                            <div class="w-full bg-gray-200 progress-bar mt-1">
+                                <div id="${area}ProgressBar" class="progress-bar bg-${colorCode}-400" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                return cardHtml;
+            },
+            
+            addCustomGoal() {
+                const nameInput = document.getElementById('customGoalName');
+                const targetInput = document.getElementById('customGoalTarget');
+                const unitInput = document.getElementById('customGoalUnit');
 
-            // --- RENDER UI (Adapted for new goals) ---
+                const name = nameInput.value.trim();
+                const target = parseFloat(targetInput.value);
+                const unit = unitInput.value;
+
+                if (!name || isNaN(target) || target <= 0) {
+                    appLogic.showStatusMessage('Please enter a valid name and positive goal.', 'bg-red-500');
+                    return;
+                }
+
+                // Create a unique key for the goal (e.g., pullups_reps)
+                const areaKey = name.toLowerCase().replace(/[^a-z0-9]/g, '_'); 
+                
+                if (appLogic.TRACKER_AREAS.includes(areaKey) || appLogic.customGoals.includes(areaKey)) {
+                    appLogic.showStatusMessage(`Goal '${name}' already exists.`, 'bg-yellow-600');
+                    return;
+                }
+
+                const newGoal = {
+                    progress: 0,
+                    goal: target,
+                    unit: unit,
+                    color: 'indigo' // Default color for custom goals
+                };
+                
+                // Add to daily data
+                appLogic.dailyGoalData[areaKey] = newGoal;
+                // Add to custom goals list
+                appLogic.customGoals.push(areaKey);
+
+                // Clear inputs
+                nameInput.value = '';
+                targetInput.value = 30;
+                unitInput.value = 'Reps';
+
+                appLogic.saveHistory();
+                appLogic.showStatusMessage(`Custom Goal '${name}' added!`, 'bg-indigo-600');
+            },
+
+
+            // --- RENDER UI (Updated to handle custom goals) ---
             renderUI() { 
                 document.getElementById('todayDateDisplay').textContent = moment().format('ddd, MMM D, YYYY');
                 
-                appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').forEach(area => {
+                // Clear the custom goals grid and re-render them
+                const customGoalsGrid = document.getElementById('customGoalsGrid');
+                customGoalsGrid.innerHTML = ''; 
+
+                // Combine fixed and custom goals for rendering
+                const allTrackedAreas = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals);
+
+                allTrackedAreas.forEach(area => {
                     const data = appLogic.dailyGoalData[area];
                     const goal = data.goal || appLogic.DEFAULT_GOALS[area].goal;
                     const progress = data.progress || 0;
-                    document.getElementById(`${area}Goal`).value = goal;
+                    
+                    // Logic to handle dynamically created cards for custom goals
+                    if (appLogic.customGoals.includes(area)) {
+                        const areaLabel = area.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); // Convert key to Title Case
+                        
+                        // Use a generic SVG path for custom goals
+                        const customSvgPath = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>';
+                        
+                        const newCard = document.createElement('div');
+                        newCard.innerHTML = appLogic.renderCard(area, data, areaLabel, `border-${data.color}-400`, customSvgPath);
+                        customGoalsGrid.appendChild(newCard.firstChild);
+                        
+                    } else {
+                        // Fixed cards already exist in the HTML, so we just update their values
+                        document.getElementById(`${area}Goal`).value = goal;
+                    }
+
+                    // *** CORE PROGRESS UPDATE LOGIC (Apply to fixed and custom) ***
                     const progressPercent = Math.min(100, (progress / goal) * 100);
                     const progressBar = document.getElementById(`${area}ProgressBar`);
                     const progressText = document.getElementById(`${area}ProgressText`);
                     const card = document.getElementById(`${area}Card`);
+                    const colorCode = data.color || appLogic.DEFAULT_GOALS[area].color;
 
                     progressBar.style.width = `${progressPercent}%`;
                     progressText.textContent = `${progress} / ${goal} (${Math.round(progressPercent)}%)`;
 
-                    card.classList.remove('ring-2', 'ring-offset-2', 'ring-green-400', 'ring-offset-white', 'ring-blue-400', 'ring-purple-400', 'ring-red-400');
-                    progressBar.classList.remove('!bg-green-600', '!bg-blue-600', '!bg-purple-600', '!bg-red-600');
+                    // Reset all ring/color classes (need to list all possible colors for Tailwind JIT compilation)
+                    card.classList.remove('ring-2', 'ring-offset-2', 'ring-green-400', 'ring-offset-white', 'ring-blue-400', 'ring-purple-400', 'ring-red-400', 'ring-indigo-400');
+                    progressBar.classList.remove('!bg-green-600', '!bg-blue-600', '!bg-purple-600', '!bg-red-600', '!bg-indigo-600');
 
                     if (progressPercent >= 100) {
-                        let cardRingColor;
-                        switch (area) {
-                            case 'pushups': cardRingColor = 'ring-green-400'; progressBar.classList.add('!bg-green-600'); break;
-                            case 'crunches': cardRingColor = 'ring-blue-400'; progressBar.classList.add('!bg-blue-600'); break;
-                            case 'squats': cardRingColor = 'ring-purple-400'; progressBar.classList.add('!bg-purple-600'); break;
-                            case 'taekwondo': cardRingColor = 'ring-red-400'; progressBar.classList.add('!bg-red-600'); break;
-                        }
-                        card.classList.add('ring-2', 'ring-offset-2', cardRingColor, 'ring-offset-white');
+                        card.classList.add('ring-2', 'ring-offset-2', `ring-${colorCode}-400`, 'ring-offset-white');
+                        progressBar.classList.add(`!bg-${colorCode}-600`);
                     }
                 });
 
@@ -556,7 +670,7 @@
                 appLogic.setAnalysisPeriod(appLogic.activePeriod);
             },
             
-            // --- ANALYSIS & CHARTING (Adapted for new goals) ---
+            // --- ANALYSIS & CHARTING (Updated to handle custom goals) ---
             setAnalysisPeriod(period) {
                 appLogic.activePeriod = period;
                 document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('period-active'));
@@ -585,8 +699,8 @@
             },
             getDailyPerformance(duration, endDate, startDate) { 
                 const dailyData = {};
-                // Exclude mindset for the score
-                const areaKeys = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset'); 
+                // Exclude mindset for the score and include custom goals
+                const areaKeys = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
                 const end = endDate || moment().startOf('day');
                 const start = startDate || moment(end).subtract(duration - 1, 'days').startOf('day');
                 
@@ -599,9 +713,11 @@
                     const data = appLogic.history[dateKey];
                     const result = {};
                     areaKeys.forEach(area => {
-                        const areaData = data && data[area] ? data[area] : appLogic.DEFAULT_GOALS[area];
+                        // Use dailyGoalData for goal value if history is missing it for the day
+                        const currentData = appLogic.dailyGoalData[area] || appLogic.DEFAULT_GOALS[area]; 
+                        const areaData = data && data[area] ? data[area] : currentData;
                         const progress = areaData.progress || 0;
-                        const goal = areaData.goal || appLogic.DEFAULT_GOALS[area].goal;
+                        const goal = areaData.goal || currentData.goal; 
                         const completion = Math.min(100, (progress / goal) * 100);
                         result[area] = completion;
                     });
@@ -610,7 +726,7 @@
                 return dailyData;
             },
             calculateAverages(periodData) { 
-                const areaKeys = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset'); 
+                const areaKeys = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
                 const total = areaKeys.reduce((acc, area) => ({ ...acc, [area]: 0 }), {});
                 const days = Object.keys(periodData).length;
                 Object.values(periodData).forEach(day => {
@@ -652,13 +768,27 @@
                 
                 const labels = Array.from({ length: currentAverages.days }, (_, i) => moment(currentPeriodStart).add(i, 'days').format('MM/DD'));
                 
-                appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').forEach(area => {
+                // Get ALL non-mindset areas (fixed and custom)
+                const allChartAreas = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
+
+                // Clear the chart container for dynamic charts
+                const analysisContainer = document.getElementById('chartGrid');
+                analysisContainer.innerHTML = ''; 
+
+                allChartAreas.forEach(area => {
                     const currentTrend = labels.map(label => currentDataRaw[moment(label, 'MM/DD').format('YYYY-MM-DD')] ? currentDataRaw[moment(label, 'MM/DD').format('YYYY-MM-DD')][area] : NaN);
                     const previousKeys = Object.keys(previousDataRaw).sort();
                     const previousTrend = Array.from({ length: labels.length }, (_, i) => {
                         const prevDateKey = previousKeys[i];
                         return previousDataRaw[prevDateKey] ? previousDataRaw[prevDateKey][area] : NaN;
                     });
+                    
+                    // NEW: Dynamically create the canvas element for the chart
+                    const chartCard = document.createElement('div');
+                    chartCard.classList.add('analysis-card', 'h-64', 'md:h-72');
+                    chartCard.innerHTML = `<canvas id="${area}Chart"></canvas>`;
+                    analysisContainer.appendChild(chartCard);
+                    
                     appLogic.drawChart(area, labels, currentTrend, previousTrend);
                 });
             },
@@ -670,12 +800,18 @@
                 const context = ctx.getContext('2d');
 
                 let color, label;
-                switch (area) {
-                    case 'pushups': color = 'rgba(52, 211, 153, 1)'; label = 'Pushup Progress'; break;
-                    case 'crunches': color = 'rgba(96, 165, 250, 1)'; label = 'Crunch Progress'; break;
-                    case 'squats': color = 'rgba(167, 139, 250, 1)'; label = 'Squat Progress'; break;
-                    case 'taekwondo': color = 'rgba(248, 113, 113, 1)'; label = 'Taekwondo Stretch'; break;
+                const data = appLogic.dailyGoalData[area] || appLogic.DEFAULT_GOALS[area];
+                const areaName = area.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); // For custom goal label
+
+                switch (data.color || area) { // Check color first, then area for fixed goals
+                    case 'green': color = 'rgba(52, 211, 153, 1)'; label = 'Pushup Progress'; break;
+                    case 'blue': color = 'rgba(96, 165, 250, 1)'; label = 'Crunch Progress'; break;
+                    case 'purple': color = 'rgba(167, 139, 250, 1)'; label = 'Squat Progress'; break;
+                    case 'red': color = 'rgba(248, 113, 113, 1)'; label = 'Taekwondo Stretch'; break;
+                    case 'indigo':
+                    default: color = 'rgba(79, 70, 229, 1)'; label = `${areaName} Progress`; break; // Default to Indigo for custom
                 }
+
                 appLogic.charts[area] = new Chart(context, {
                     type: 'line',
                     data: {
@@ -759,4 +895,3 @@
 
 </body>
 </html>
-
