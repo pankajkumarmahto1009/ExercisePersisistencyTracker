@@ -6,7 +6,7 @@
     <title>Exercise Persistency Tracker</title>
     
     <link rel="manifest" href="/manifest.json">
-    <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgoBMwmUtsrDIRDuc6h1GyYpKuI2bN9H2A_QzFSXQBd831PsPx7jcI6cQzG4Hu4VoP6gOVtER_C2_bFfbrMc_luHEWi5X4Uq3ksO8LqXVOR-E_KJLNOLV_OUmOHggCEZ83sMvV9A6PccY_G-18lFP0Q9NgNmNarH9QgSdWq02gOWnRXo2O419pSFb-X-zA/s1024/1000134900.jpg" sizes="192x192">
+    <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgoBMwmUtsrDIRDuc6h1GyYpKuI2bN9H2A_QzFSXQBd831PsPx7jcI6cQzG4Hu4VoP6gOVtER_C2_bFkbrMc_luHEWi5X4Uq3ksO8LqXVOR-E_KJLNOLV_OUmOHggCEZ83sMvV9A6PccY_G-18lFP0Q9NgNmNarH9QgSdWq02gOWnRXo2O419pSFb-X-zA/s1024/1000134900.jpg" sizes="192x192">
     <meta name="theme-color" content="#4F46E5">
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -439,12 +439,20 @@
                 
                 // Include fixed goals
                 appLogic.TRACKER_AREAS.forEach(area => {
-                    dataToSave[area] = appLogic.dailyGoalData[area] || appLogic.DEFAULT_GOALS[area];
+                    if (appLogic.dailyGoalData[area]) {
+                         dataToSave[area] = appLogic.dailyGoalData[area];
+                    } else if (appLogic.DEFAULT_GOALS[area]) {
+                        // Re-add default if it somehow got lost but is a fixed area
+                         dataToSave[area] = appLogic.DEFAULT_GOALS[area]; 
+                    }
                 });
                 
                 // Include custom goals
                 appLogic.customGoals.forEach(area => {
-                    dataToSave[area] = appLogic.dailyGoalData[area]; // Data is already loaded/created
+                    // Only save custom goal data if it still exists in dailyGoalData
+                    if (appLogic.dailyGoalData[area]) { 
+                        dataToSave[area] = appLogic.dailyGoalData[area];
+                    }
                 });
 
                 appLogic.history[todayKey] = {
@@ -508,16 +516,18 @@
                 
                 // Reset fixed goals, keeping their goal value
                 appLogic.TRACKER_AREAS.forEach(area => {
-                    if (area !== 'mindset') {
+                    if (area !== 'mindset' && currentGoals[area]) {
                         newDailyData[area] = { progress: 0, goal: currentGoals[area].goal, unit: currentGoals[area].unit, color: currentGoals[area].color };
-                    } else {
+                    } else if (area === 'mindset') {
                         newDailyData[area] = { status: 'Untoggled', is100: false };
                     }
                 });
 
                 // Reset custom goals, keeping their goal value and unit
                 appLogic.customGoals.forEach(area => {
-                    newDailyData[area] = { progress: 0, goal: currentGoals[area].goal, unit: currentGoals[area].unit, color: currentGoals[area].color };
+                    if (currentGoals[area]) {
+                        newDailyData[area] = { progress: 0, goal: currentGoals[area].goal, unit: currentGoals[area].unit, color: currentGoals[area].color };
+                    }
                 });
 
                 appLogic.dailyGoalData = newDailyData; 
@@ -525,14 +535,51 @@
                 appLogic.showStatusMessage('Daily progress reset! New day, new opportunities!', 'bg-blue-600');
             },
             
+            // NEW FUNCTION: Handles the removal of a custom goal
+            removeGoal(area) {
+                if (!confirm(`Are you sure you want to remove the goal: ${area.replace(/_/g, ' ').toUpperCase()}? This cannot be undone.`)) {
+                    return;
+                }
+
+                // Remove from customGoals array
+                appLogic.customGoals = appLogic.customGoals.filter(g => g !== area);
+                
+                // Remove from today's data (will be filtered out on next load, but important for immediate UI)
+                if (appLogic.dailyGoalData[area]) {
+                    delete appLogic.dailyGoalData[area];
+                }
+
+                // Since we need to update the history document to remove the data, 
+                // we'll explicitly delete all records for this goal across the entire history
+                const goalLabel = area.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+                // Iterate through all days in history and remove the area key
+                Object.keys(appLogic.history).forEach(dateKey => {
+                    if (appLogic.history[dateKey] && appLogic.history[dateKey][area]) {
+                        delete appLogic.history[dateKey][area];
+                    }
+                });
+
+                appLogic.saveHistory(); // Save the pruned history
+                appLogic.renderUI(); // Re-render to update the UI immediately
+                appLogic.showStatusMessage(`${goalLabel} goal successfully removed!`, 'bg-red-500');
+            },
+
+
             // NEW: Function to dynamically generate a tracker card HTML
             renderCard(area, data, label, cardColor, svgPath) {
                 const colorCode = data.color || 'indigo'; // Fallback to indigo
+                const removeButton = appLogic.customGoals.includes(area) ? 
+                    `<button onclick="appLogic.removeGoal('${area}')" class="text-xs text-red-400 hover:text-red-600 font-medium transition duration-150 mt-2">Remove Goal</button>` : '';
+
                 const cardHtml = `
                     <div id="${area}Card" class="tracker-card bg-white p-6 border-l-4 border-${colorCode}-400">
-                        <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-                            <svg class="w-5 h-5 mr-2 text-${colorCode}-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${svgPath}</svg>
-                            ${label}
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center justify-between">
+                            <span class="flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-${colorCode}-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${svgPath}</svg>
+                                ${label}
+                            </span>
+                             ${removeButton}
                         </h3>
                         <label for="${area}Goal" class="text-sm font-medium text-gray-500">Goal: ${data.unit}</label>
                         <input type="number" id="${area}Goal" onchange="appLogic.updateGoal('${area}', '${area}Goal')" value="${data.goal}" min="1" class="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:ring-${colorCode}-400 focus:border-${colorCode}-400">
@@ -610,7 +657,10 @@
                 const allTrackedAreas = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals);
 
                 allTrackedAreas.forEach(area => {
-                    const data = appLogic.dailyGoalData[area];
+                    // Skip rendering if the goal was just deleted but the state hasn't fully propagated
+                    if (!appLogic.dailyGoalData[area] && !appLogic.DEFAULT_GOALS[area]) return; 
+
+                    const data = appLogic.dailyGoalData[area] || appLogic.DEFAULT_GOALS[area];
                     const goal = data.goal || appLogic.DEFAULT_GOALS[area].goal;
                     const progress = data.progress || 0;
                     
@@ -627,7 +677,8 @@
                         
                     } else {
                         // Fixed cards already exist in the HTML, so we just update their values
-                        document.getElementById(`${area}Goal`).value = goal;
+                        const goalInput = document.getElementById(`${area}Goal`);
+                        if(goalInput) goalInput.value = goal;
                     }
 
                     // *** CORE PROGRESS UPDATE LOGIC (Apply to fixed and custom) ***
@@ -637,16 +688,18 @@
                     const card = document.getElementById(`${area}Card`);
                     const colorCode = data.color || appLogic.DEFAULT_GOALS[area].color;
 
-                    progressBar.style.width = `${progressPercent}%`;
-                    progressText.textContent = `${progress} / ${goal} (${Math.round(progressPercent)}%)`;
+                    if (progressBar && progressText && card) { // Ensure elements exist for fixed/newly created custom goals
+                        progressBar.style.width = `${progressPercent}%`;
+                        progressText.textContent = `${progress} / ${goal} (${Math.round(progressPercent)}%)`;
 
-                    // Reset all ring/color classes (need to list all possible colors for Tailwind JIT compilation)
-                    card.classList.remove('ring-2', 'ring-offset-2', 'ring-green-400', 'ring-offset-white', 'ring-blue-400', 'ring-purple-400', 'ring-red-400', 'ring-indigo-400');
-                    progressBar.classList.remove('!bg-green-600', '!bg-blue-600', '!bg-purple-600', '!bg-red-600', '!bg-indigo-600');
+                        // Reset all ring/color classes (need to list all possible colors for Tailwind JIT compilation)
+                        card.classList.remove('ring-2', 'ring-offset-2', 'ring-green-400', 'ring-offset-white', 'ring-blue-400', 'ring-purple-400', 'ring-red-400', 'ring-indigo-400');
+                        progressBar.classList.remove('!bg-green-600', '!bg-blue-600', '!bg-purple-600', '!bg-red-600', '!bg-indigo-600');
 
-                    if (progressPercent >= 100) {
-                        card.classList.add('ring-2', 'ring-offset-2', `ring-${colorCode}-400`, 'ring-offset-white');
-                        progressBar.classList.add(`!bg-${colorCode}-600`);
+                        if (progressPercent >= 100) {
+                            card.classList.add('ring-2', 'ring-offset-2', `ring-${colorCode}-400`, 'ring-offset-white');
+                            progressBar.classList.add(`!bg-${colorCode}-600`);
+                        }
                     }
                 });
 
