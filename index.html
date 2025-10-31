@@ -917,7 +917,6 @@
                     data: {
                         labels: labels,
                         datasets: [
-                            // *** FIX: Added spanGaps: true and fill: false to prevent interpolation of null/zero values ***
                             { 
                                 label: 'Current Period', 
                                 data: currentTrend, 
@@ -927,7 +926,7 @@
                                 tension: 0.2, 
                                 pointRadius: 3, 
                                 borderWidth: 3,
-                                spanGaps: true // Tell chart.js to skip null data points
+                                spanGaps: true 
                             },
                             { 
                                 label: 'Previous Period', 
@@ -939,7 +938,7 @@
                                 tension: 0.2, 
                                 pointRadius: 0, 
                                 borderWidth: 2,
-                                spanGaps: true // Tell chart.js to skip null data points
+                                spanGaps: true 
                             }
                         ]
                     },
@@ -952,13 +951,18 @@
                         scales: {
                             x: { 
                                 grid: { display: false }, 
-                                ticks: { autoSkip: true, maxRotation: 0, minRotation: 0 } 
+                                // *** FIX FOR DISPLAYING ALL DATES (LABELS) ***
+                                ticks: { 
+                                    autoSkip: false, // Disable auto-skipping
+                                    maxRotation: 45, // Rotate labels to fit more on the axis
+                                    minRotation: 45 // Ensure rotation is applied
+                                }
+                                // ********************************************
                             },
                             y: { 
                                 min: 0, 
                                 max: 100, 
                                 title: { display: true, text: 'Completion (%)' },
-                                // Set suggestedMin to 0 for better visual starting point consistency
                                 suggestedMin: 0
                             }
                         }
