@@ -65,18 +65,6 @@
             color: white;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
-        /* New style for the chart wrapper to enable internal scrolling */
-        .chart-scroll-wrapper {
-            /* REVERTED: Removing internal scrolling complexity. Charts will fit their responsive container. */
-            overflow-x: hidden; 
-            position: relative; 
-            height: 100%;
-        }
-        /* Ensure the canvas fills its content width, allowing overflow */
-        .chart-content {
-            height: 100%;
-            min-width: 100%; 
-        }
     </style>
 
 </head>
@@ -264,6 +252,18 @@
             <!-- --- ANALYSIS SECTION (Charts) --- -->
             <h2 class="text-2xl font-bold text-gray-800 text-center mb-6 pt-4 border-t border-gray-300">Analysis & Trends</h2>
             
+            <!-- NEW: Time Scroll Buttons -->
+            <div class="max-w-4xl mx-auto flex justify-between space-x-4 mb-4">
+                <button id="prevPeriodBtn" onclick="appLogic.shiftPeriod(-1)" class="py-2 px-3 sm:px-6 rounded-lg text-sm sm:text-base text-gray-700 border border-gray-300 hover:bg-gray-200 transition duration-150 shadow-sm disabled:opacity-50">
+                    <svg class="w-4 h-4 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    Previous Period
+                </button>
+                <button id="nextPeriodBtn" onclick="appLogic.shiftPeriod(1)" class="py-2 px-3 sm:px-6 rounded-lg text-sm sm:text-base text-gray-700 border border-gray-300 hover:bg-gray-200 transition duration-150 shadow-sm disabled:opacity-50">
+                    Next Period
+                    <svg class="w-4 h-4 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </button>
+            </div>
+            
             <!-- Period Selector -->
             <div class="flex justify-center space-x-2 sm:space-x-4 mb-8 flex-wrap">
                 <button id="weekBtn" onclick="appLogic.setAnalysisPeriod('week')" class="period-btn py-2 px-4 sm:px-6 rounded-full text-sm sm:text-base text-gray-700 border border-gray-300 hover:bg-indigo-100 transition duration-150 mb-2">
@@ -374,6 +374,7 @@
             activePeriodData: {}, 
             customGoalDefinitions: {}, 
             isGoalFormVisible: false, 
+            dateOffset: 0, // NEW: 0 = current period, 1 = previous period, etc.
 
             // CONSTANTS - UPDATED FOR EXERCISE TRACKING
             TRACKER_AREAS: ['pushups', 'crunches', 'squats', 'taekwondo', 'mindset'],
@@ -728,7 +729,7 @@
                 }
             },
             
-            // --- RENDER CARD AND ADD GOAL ---
+            // --- RENDER CARD AND ADD GOAL (omitted for brevity) ---
             renderCard(area, data, label, cardColor, svgPath) {
                 const colorCode = data.color || 'indigo'; // Fallback to indigo
                 const removeButton = appLogic.customGoals.includes(area) ? 
@@ -800,13 +801,13 @@
                 
                 appLogic.saveCustomGoalDefinitions();
                 appLogic.saveHistory();
-                appLogic.toggleCustomGoalForm(); // Hide form after successful addition
+                appLogic.toggleCustomGoalForm(); 
 
                 appLogic.showStatusMessage(`Custom Goal '${name}' added!`, 'bg-indigo-600');
             },
 
 
-            // --- RENDER UI ---
+            // --- RENDER UI (omitted for brevity) ---
             renderUI() { 
                 document.getElementById('todayDateDisplay').textContent = moment().format('ddd, MMM D, YYYY');
                 
@@ -874,8 +875,14 @@
             },
             
             // --- ANALYSIS & CHARTING ---
+            shiftPeriod(direction) {
+                appLogic.dateOffset += direction;
+                appLogic.renderAnalysis();
+            },
+            
             setAnalysisPeriod(period) {
                 appLogic.activePeriod = period;
+                appLogic.dateOffset = 0; // Reset offset when changing period type
                 document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('period-active'));
                 const activeBtn = document.getElementById(`${period}Btn`);
                 if (activeBtn) { activeBtn.classList.add('period-active'); }
@@ -884,82 +891,101 @@
 
             getAnalysisDuration() { 
                 const today = moment().startOf('day');
-                let duration, previousDuration;
+                
+                let durationDays, timeUnit, periodMultiplier;
+                
+                // Define base durations and time unit for offset calculation
                 switch (appLogic.activePeriod) {
-                    case 'week': duration = 7; previousDuration = 7; break;
-                    case 'month': duration = 30; previousDuration = 30; break;
-                    case 'year': duration = 365; previousDuration = 365; break;
+                    case 'week':
+                    default:
+                        durationDays = 7;
+                        timeUnit = 'days';
+                        periodMultiplier = 1;
+                        break;
+                    case 'month':
+                        durationDays = 30; // Approximation for visualization purposes
+                        timeUnit = 'months';
+                        periodMultiplier = 1;
+                        break;
+                    case 'year':
+                        durationDays = 365; // Approximation
+                        timeUnit = 'years';
+                        periodMultiplier = 1;
+                        break;
                     case 'all':
                         const historyDates = Object.keys(appLogic.history).sort();
-                        if (historyDates.length === 0) { duration = 1; previousDuration = 0; break; }
+                        if (historyDates.length === 0) { durationDays = 1; break; }
                         const firstDay = moment(historyDates[0], 'YYYY-MM-DD');
-                        const totalDays = today.diff(firstDay, 'days') + 1;
-                        duration = Math.ceil(totalDays / 2); previousDuration = Math.floor(totalDays / 2); 
+                        durationDays = today.diff(firstDay, 'days') + 1;
+                        timeUnit = 'days';
+                        periodMultiplier = durationDays; // Offset by the whole duration in 'all' mode
                         break;
-                    default: duration = 7; previousDuration = 7;
                 }
-                return { duration, previousDuration };
-            },
-            
-            getDailyPerformance(duration, endDate, startDate) { 
-                const dailyData = {};
-                const areaKeys = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
-                const end = endDate || moment().startOf('day');
-                const start = startDate || moment(end).subtract(duration - 1, 'days').startOf('day');
                 
-                const datesInPeriod = [];
-                for (let date = moment(start); date.isSameOrBefore(end); date.add(1, 'days')) {
-                    datesInPeriod.push(date.format('YYYY-MM-DD'));
-                }
+                // Calculate the true duration for the period type
+                let end, start;
+                let referenceDate = moment(today);
+                
+                if (appLogic.activePeriod === 'all') {
+                    // For 'all', we just use the entire history range
+                    const historyDates = Object.keys(appLogic.history).sort();
+                    if (historyDates.length === 0) {
+                        start = moment(today);
+                        end = moment(today);
+                    } else {
+                         // Find the range based on history and offset
+                         const sortedDates = Object.keys(appLogic.history).sort();
+                         const totalDays = sortedDates.length;
+                         const chunk = 365; // Chunk size for scrolling in 'All Time' view
+                         
+                         const totalChunks = Math.ceil(totalDays / chunk);
+                         const offsetPeriods = Math.min(appLogic.dateOffset, totalChunks -1); // Clamp the offset
+                         
+                         // Start date is chunk * offset from the earliest day
+                         const historyStart = moment(sortedDates[0], 'YYYY-MM-DD');
+                         
+                         // Determine the scrolling window
+                         start = moment(historyStart).add(offsetPeriods * chunk, 'days');
+                         end = moment(start).add(chunk - 1, 'days');
+                         
+                         // Ensure end does not exceed today
+                         if (end.isAfter(today)) end = today;
+                    }
 
-                datesInPeriod.forEach(dateKey => {
-                    const data = appLogic.history[dateKey];
-                    const result = {};
-                    areaKeys.forEach(area => {
-                        const currentData = appLogic.dailyGoalData[area] || appLogic.DEFAULT_GOALS[area]; 
-                        const areaData = data && data[area] ? data[area] : currentData;
-                        const progress = areaData.progress || 0;
-                        const goal = areaData.goal || currentData.goal; 
-                        const completion = Math.min(100, (progress / goal) * 100);
-                        
-                        result[area] = completion; 
-                    });
-                    dailyData[dateKey] = result;
-                });
-                return dailyData;
-            },
-            
-            calculateAverages(periodData) { 
-                const areaKeys = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
-                const total = areaKeys.reduce((acc, area) => ({ ...acc, [area]: 0 }), {});
-                const days = Object.keys(periodData).length;
-                
-                Object.values(periodData).forEach(day => {
-                    areaKeys.forEach(area => {
-                         const completionValue = day[area] === null ? 0 : day[area];
-                         total[area] += completionValue;
-                    });
-                });
-                
-                const avg = {};
-                areaKeys.forEach(area => {
-                    avg[area] = days > 0 ? (total[area] / days) : 0;
-                });
-                
-                const overallAvg = areaKeys.length > 0 ? (Object.values(avg).reduce((sum, val) => sum + val, 0) / areaKeys.length) : 0;
-                
-                return { avg: avg, overallAvg: overallAvg, days: days };
+                    // For comparison purposes, we use the previous chunk size
+                    let previousStart = moment(start).subtract(chunk, 'days');
+                    let previousEnd = moment(start).subtract(1, 'day');
+                    
+                    if (previousStart.isBefore(moment(sortedDates[0], 'YYYY-MM-DD'))) previousStart = moment(sortedDates[0], 'YYYY-MM-DD');
+                    
+                    const currentDays = end.diff(start, 'days') + 1;
+                    const previousDays = previousEnd.diff(previousStart, 'days') + 1;
+                    
+                    return { duration: currentDays, previousDuration: previousDays, start: start, end: end, previousStart: previousStart, previousEnd: previousEnd };
+
+                } else {
+                    // Standard period shifting
+                    const offsetAmount = appLogic.dateOffset * periodMultiplier;
+                    
+                    // The end date is offset periods back from today's end of day
+                    end = moment(today).subtract(offsetAmount, timeUnit);
+                    
+                    // The start date is the end date minus the base duration
+                    start = moment(end).subtract(durationDays - 1, 'days');
+                    
+                    // Comparison period (1 period before current start)
+                    let previousEnd = moment(start).subtract(1, 'day');
+                    let previousStart = moment(previousEnd).subtract(durationDays - 1, 'days');
+                    
+                    return { duration: durationDays, previousDuration: durationDays, start: start, end: end, previousStart: previousStart, previousEnd: previousEnd };
+                }
             },
             
             renderAnalysis() { 
-                const { duration, previousDuration } = appLogic.getAnalysisDuration();
-                const today = moment().startOf('day');
-                let currentPeriodEnd = today;
-                let currentPeriodStart = moment(today).subtract(duration - 1, 'days');
-                let previousPeriodEnd = moment(currentPeriodStart).subtract(1, 'second');
-                let previousPeriodStart = moment(previousPeriodEnd).subtract(previousDuration - 1, 'days');
-                const currentDataRaw = appLogic.getDailyPerformance(duration, currentPeriodEnd, currentPeriodStart);
-                const previousDataRaw = appLogic.getDailyPerformance(previousDuration, previousPeriodEnd, previousPeriodStart);
+                const { duration, start, end, previousStart, previousEnd } = appLogic.getAnalysisDuration();
+                
+                const currentDataRaw = appLogic.getDailyPerformance(duration, end, start);
+                const previousDataRaw = appLogic.getDailyPerformance(duration, previousEnd, previousStart);
                 const currentAverages = appLogic.calculateAverages(currentDataRaw);
                 const previousAverages = appLogic.calculateAverages(previousDataRaw);
                 
@@ -969,8 +995,10 @@
                 const previousAvgScore = Math.round(previousAverages.overallAvg);
                 const diff = currentAvgScore - previousAvgScore;
 
-                document.getElementById('currentPeriodLabel').textContent = `${appLogic.activePeriod === 'all' ? 'Second Half' : 'Current Period'} (${currentAverages.days} Days)`;
-                document.getElementById('previousPeriodLabel').textContent = `${appLogic.activePeriod === 'all' ? 'First Half' : 'Previous Period'} (${previousAverages.days} Days)`;
+                // --- Update UI Text and Scroll Buttons ---
+                const periodFormat = appLogic.activePeriod === 'year' ? 'MMM YYYY' : (appLogic.activePeriod === 'month' ? 'MMM D' : 'MM/DD');
+                document.getElementById('currentPeriodLabel').textContent = `${start.format(periodFormat)} - ${end.format(periodFormat)}`;
+                document.getElementById('previousPeriodLabel').textContent = `${previousStart.format(periodFormat)} - ${previousEnd.format(periodFormat)}`;
                 document.getElementById('currentAvgScore').textContent = `${currentAvgScore}%`;
                 document.getElementById('previousAvgScore').textContent = `${previousAvgScore}%`;
                 
@@ -979,15 +1007,11 @@
                 diffElement.classList.toggle('text-green-600', diff >= 0);
                 diffElement.classList.toggle('text-red-600', diff < 0);
                 
-                
-                document.getElementById('weekBtn').textContent = `Compare Week`;
-                document.getElementById('monthBtn').textContent = `Compare Month`; 
-                document.getElementById('yearBtn').textContent = `Compare Year`;
-                document.getElementById('allBtn').textContent = `Compare All Time`;
+                // Disable 'Next' button if we are viewing the current period (offset 0)
+                document.getElementById('nextPeriodBtn').disabled = appLogic.dateOffset === 0;
 
-
-                const labels = Array.from({ length: currentAverages.days }, (_, i) => {
-                     return moment(currentPeriodStart).add(i, 'days').format('MM/DD');
+                const labels = Array.from({ length: duration }, (_, i) => {
+                     return moment(start).add(i, 'days').format('MM/DD');
                 });
                 
                 const allChartAreas = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
@@ -997,45 +1021,41 @@
 
                 allChartAreas.forEach(area => {
                     const currentTrend = labels.map((label, i) => {
-                         const dateKey = moment(currentPeriodStart).add(i, 'days').format('YYYY-MM-DD');
+                         const dateKey = moment(start).add(i, 'days').format('YYYY-MM-DD');
                          return currentDataRaw[dateKey] ? currentDataRaw[dateKey][area] : 0; 
                     });
                     
-                    const previousKeys = Object.keys(previousDataRaw).sort();
-                    const previousTrend = Array.from({ length: labels.length }, (_, i) => {
-                        const prevDateKey = previousKeys[i];
-                        return previousDataRaw[prevDateKey] ? previousDataRaw[prevDateKey][area] : 0;
+                    const previousTrend = labels.map((label, i) => {
+                        const dateKey = moment(previousStart).add(i, 'days').format('YYYY-MM-DD');
+                        return previousDataRaw[dateKey] ? previousDataRaw[dateKey][area] : 0;
                     });
                     
                     const chartCard = document.createElement('div');
-                    // Add analysis-card and h-64/md:h-72 for standard styling and height
                     chartCard.classList.add('analysis-card', 'h-64', 'md:h-72'); 
 
-                    // Create the inner scroll wrapper for horizontal scrolling
+                    // Create the inner scroll wrapper
                     const scrollWrapper = document.createElement('div');
                     scrollWrapper.classList.add('chart-scroll-wrapper');
                     
                     const canvas = document.createElement('canvas');
                     canvas.id = `${area}Chart`;
-                    canvas.classList.add('chart-content'); // Uses width/height 100%
-                    
-                    // --- REVERTED: Dynamic Width Calculation Removed ---
-                    let forcedWidth = '100%';
-                    if (duration > 7) {
-                        // For long periods, calculate a minimum width (20px per point) to force overflow
-                        // This forces the content to be wider than the container, enabling scroll
-                        forcedWidth = `${Math.max(chartCard.clientWidth, duration * 20)}px`;
-                    }
-                    
-                    canvas.style.minWidth = forcedWidth;
-                    // --- END REVERTED ---
-
+                    canvas.classList.add('chart-content');
 
                     scrollWrapper.appendChild(canvas);
                     chartCard.appendChild(scrollWrapper);
                     analysisContainer.appendChild(chartCard); 
                     
-                    appLogic.drawChart(area, labels, currentTrend, previousTrend, forcedWidth);
+                    // --- NEW LOGIC: Force minimum width for horizontal scrolling on periods > 7 days ---
+                    let chartContentWidth = '100%';
+                    if (duration > 7) {
+                        // Max width is 1000px, min width is based on data density
+                        chartContentWidth = `${Math.max(chartCard.clientWidth, duration * 18)}px`;
+                    }
+                    
+                    canvas.style.minWidth = chartContentWidth;
+                    // --- END NEW LOGIC ---
+
+                    appLogic.drawChart(area, labels, currentTrend, previousTrend, chartContentWidth);
                 });
             },
 
@@ -1091,7 +1111,7 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        // Set aspectRatio to null if we have forced a specific min-width, allowing height to stay responsive
+                        // Ensure aspect ratio is null when forced width is used to maintain fluid height
                         aspectRatio: forcedWidth !== '100%' ? null : 1, 
                         plugins: {
                             legend: { display: false },
@@ -1104,6 +1124,8 @@
                                     autoSkip: true, 
                                     maxRotation: 0, 
                                     minRotation: 0,
+                                    // Set a limit on ticks for monthly/yearly views to reduce clutter on small screens
+                                    maxTicksLimit: (forcedWidth !== '100%') ? 10 : 7,
                                 }
                             },
                             y: { 
