@@ -695,8 +695,7 @@
                         // Use a generic SVG path for custom goals
                         const customSvgPath = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>';
                         
-                        // *** CRITICAL FIX APPLIED HERE ***
-                        // Use insertAdjacentHTML which is often more reliable for immediate DOM population than appendChild(tempDiv.firstChild)
+                        // *** CRITICAL FIX APPLIED HERE: Use insertAdjacentHTML for reliable DOM population ***
                         customGoalsGrid.insertAdjacentHTML('beforeend', appLogic.renderCard(area, data, areaLabel, `border-${data.color}-400`, customSvgPath));
                         
                     } else {
@@ -775,6 +774,8 @@
                 }
                 return { duration, previousDuration };
             },
+            
+            // --- FIXED: MAPPING 0% TO NULL FOR GAPS ---
             getDailyPerformance(duration, endDate, startDate) { 
                 const dailyData = {};
                 // Exclude mindset for the score and include custom goals
@@ -797,28 +798,49 @@
                         const progress = areaData.progress || 0;
                         const goal = areaData.goal || currentData.goal; 
                         const completion = Math.min(100, (progress / goal) * 100);
-                        result[area] = completion;
+                        
+                        // *** FIX: Map 0% completion to NULL to create a gap in the line chart ***
+                        // If progress > 0, show the completion percentage, otherwise if completion is exactly 0, show null.
+                        result[area] = progress > 0 ? completion : null;
                     });
                     dailyData[dateKey] = result;
                 });
                 return dailyData;
             },
+            
             calculateAverages(periodData) { 
                 const areaKeys = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
                 const total = areaKeys.reduce((acc, area) => ({ ...acc, [area]: 0 }), {});
                 const days = Object.keys(periodData).length;
+                
+                let validDaysCount = 0;
+                
                 Object.values(periodData).forEach(day => {
+                    let dayTotal = 0;
+                    let areaCount = 0;
                     areaKeys.forEach(area => {
-                         total[area] += day[area] || 0;
+                         // Only count non-null (i.e., non-zero) entries for averaging calculation if required,
+                         // but for overall avg we should probably calculate based on 0-100% completion of goal.
+                         // Let's stick to using the actual completion value for averages, but we need to convert null back to 0 for calculation.
+                         const completionValue = day[area] === null ? 0 : day[area];
+                         total[area] += completionValue;
+                         dayTotal += completionValue;
+                         areaCount++;
                     });
+                    if (areaCount > 0) { validDaysCount++; }
                 });
+                
                 const avg = {};
                 areaKeys.forEach(area => {
                     avg[area] = days > 0 ? (total[area] / days) : 0;
                 });
-                const overallAvg = days > 0 ? (Object.values(avg).reduce((sum, val) => sum + val, 0) / areaKeys.length) : 0;
+                
+                // Re-calculate overall average to include all areas whether they were logged or not (as 0)
+                const overallAvg = areaKeys.length > 0 ? (Object.values(avg).reduce((sum, val) => sum + val, 0) / areaKeys.length) : 0;
+                
                 return { avg: avg, overallAvg: overallAvg, days: days };
             },
+            
             renderAnalysis() { 
                 const { duration, previousDuration } = appLogic.getAnalysisDuration();
                 const today = moment().startOf('day');
@@ -854,11 +876,11 @@
                 analysisContainer.innerHTML = ''; 
 
                 allChartAreas.forEach(area => {
-                    const currentTrend = labels.map(label => currentDataRaw[moment(label, 'MM/DD').format('YYYY-MM-DD')] ? currentDataRaw[moment(label, 'MM/DD').format('YYYY-MM-DD')][area] : NaN);
+                    const currentTrend = labels.map(label => currentDataRaw[moment(label, 'MM/DD').format('YYYY-MM-DD')] ? currentDataRaw[moment(label, 'MM/DD').format('YYYY-MM-DD')][area] : null);
                     const previousKeys = Object.keys(previousDataRaw).sort();
                     const previousTrend = Array.from({ length: labels.length }, (_, i) => {
                         const prevDateKey = previousKeys[i];
-                        return previousDataRaw[prevDateKey] ? previousDataRaw[prevDateKey][area] : NaN;
+                        return previousDataRaw[prevDateKey] ? previousDataRaw[prevDateKey][area] : null;
                     });
                     
                     // NEW: Dynamically create the canvas element for the chart
@@ -895,8 +917,30 @@
                     data: {
                         labels: labels,
                         datasets: [
-                            { label: 'Current Period', data: currentTrend, borderColor: color, backgroundColor: color.replace('1)', '0.1)'), fill: true, tension: 0.2, pointRadius: 3, borderWidth: 3 },
-                            { label: 'Previous Period', data: previousTrend, borderColor: color.replace('1)', '0.5)'), backgroundColor: 'transparent', borderDash: [5, 5], fill: false, tension: 0.2, pointRadius: 0, borderWidth: 2 }
+                            // *** FIX: Added spanGaps: true and fill: false to prevent interpolation of null/zero values ***
+                            { 
+                                label: 'Current Period', 
+                                data: currentTrend, 
+                                borderColor: color, 
+                                backgroundColor: color.replace('1)', '0.1)'), 
+                                fill: false, // Set fill to false to prevent area filling
+                                tension: 0.2, 
+                                pointRadius: 3, 
+                                borderWidth: 3,
+                                spanGaps: true // Tell chart.js to skip null data points
+                            },
+                            { 
+                                label: 'Previous Period', 
+                                data: previousTrend, 
+                                borderColor: color.replace('1)', '0.5)'), 
+                                backgroundColor: 'transparent', 
+                                borderDash: [5, 5], 
+                                fill: false, 
+                                tension: 0.2, 
+                                pointRadius: 0, 
+                                borderWidth: 2,
+                                spanGaps: true // Tell chart.js to skip null data points
+                            }
                         ]
                     },
                     options: {
@@ -906,8 +950,17 @@
                             title: { display: true, text: label, color: '#4B5563', padding: { top: 10, bottom: 5 } }
                         },
                         scales: {
-                            x: { grid: { display: false }, ticks: { autoSkip: true, maxRotation: 0, minRotation: 0 } },
-                            y: { min: 0, max: 100, title: { display: true, text: 'Completion (%)' } }
+                            x: { 
+                                grid: { display: false }, 
+                                ticks: { autoSkip: true, maxRotation: 0, minRotation: 0 } 
+                            },
+                            y: { 
+                                min: 0, 
+                                max: 100, 
+                                title: { display: true, text: 'Completion (%)' },
+                                // Set suggestedMin to 0 for better visual starting point consistency
+                                suggestedMin: 0
+                            }
                         }
                     }
                 });
