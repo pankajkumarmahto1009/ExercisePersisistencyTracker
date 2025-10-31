@@ -29,7 +29,7 @@
             overflow-x: hidden;
         }
         .tracker-card {
-            box-shadow: 0 5px 10px -3px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
+            box-shadow: 0 5px 10px -3px rgba(0, 0, 0, 0.08), 0 2 px 4px -2px rgba(0, 0, 0, 0.03);
             transition: transform 0.2s ease, box-shadow 0.2s ease;
             border-radius: 0.75rem; /* Rounded corners */
         }
@@ -82,7 +82,7 @@
             box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
         }
         /* Additional styling for the new range report charts to ensure they occupy full width on mobile */
-        #rangeChartGrid, #comparisonChartGrid {
+        #comparisonChartGrid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
         }
@@ -332,7 +332,7 @@
             </div>
             <!-- --- END A/B SETUP SECTION --- -->
 
-            <!-- Main Comparative Analysis Grid (Stays the same) -->
+            <!-- Main Comparative Analysis Grid (Standard Week/Month/Year Comparison) -->
             <div id="comparativeAnalysisContainer" class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-10">
                 <!-- Comparison Card -->
                 <div class="analysis-card border-t-4 border-indigo-500 lg:col-span-1 flex flex-col justify-center items-center text-center">
@@ -367,7 +367,7 @@
             <!-- --- END STANDARD COMPARATIVE ANALYSIS SECTION --- -->
 
 
-            <!-- NEW: A/B Comparison Report Container -->
+            <!-- NEW: A/B Comparison Report Container (Hidden by default) -->
             <div id="comparisonReportContainer" class="hidden mt-12 mb-10 pt-8 border-t border-gray-400">
                 <h3 class="text-2xl font-bold text-gray-800 text-center mb-6">
                     A/B Comparison Report
@@ -1193,7 +1193,7 @@
                     document.getElementById('believeCard').classList.add('border-yellow-400');
                 }
                 
-                // Initialize date pickers with default values
+                // Set default dates for A/B pickers
                 const todayFormatted = moment().format('YYYY-MM-DD');
                 if (document.getElementById('startDatePickerA')) {
                     document.getElementById('startDatePickerA').value = moment().subtract(14, 'days').format('YYYY-MM-DD');
@@ -1201,6 +1201,7 @@
                     document.getElementById('startDatePickerB').value = moment().subtract(6, 'days').format('YYYY-MM-DD');
                     document.getElementById('endDatePickerB').value = todayFormatted;
                 }
+
 
                 appLogic.setAnalysisPeriod(appLogic.activePeriod);
             },
@@ -1226,7 +1227,7 @@
                 }
                 
                 // Get the performance data for the selected range (no comparison needed)
-                const { dailyData, labels, total, days, overallAvgText } = appLogic.getRangePerformanceForComparison(startDate, endDate);
+                const { dailyData, labels, days, overallAvgText } = appLogic.getRangePerformanceForComparison(startDate, endDate);
 
                 const rangeData = {
                     startDate: startDate.format('YYYY-MM-DD'),
@@ -1397,8 +1398,6 @@
                 );
                 const areaKeys = activeFixedGoals.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
                 
-                const totalCompletionByArea = areaKeys.reduce((acc, area) => ({ ...acc, [area]: 0 }), {});
-                
                 const labels = [];
                 let daysInPeriod = 0;
                 let overallTotalCompletion = 0;
@@ -1424,7 +1423,6 @@
                         const completion = goal > 0 ? Math.min(100, (progress / goal) * 100) : 0;
                         
                         result[area] = completion;
-                        totalCompletionByArea[area] += completion;
                         dailyCompletionSum += completion;
                         goalsTracked++;
                     });
@@ -1444,7 +1442,6 @@
                 return { 
                     dailyData: dailyData, 
                     labels: labels, 
-                    total: totalCompletionByArea,
                     days: daysInPeriod,
                     overallAvgText: overallAvgText
                 };
