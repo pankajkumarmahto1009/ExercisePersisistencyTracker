@@ -140,11 +140,14 @@
                 </div>
             </div>
             
-            <!-- Custom Goal Toggle Button -->
-            <div class="max-w-xl mx-auto mb-6">
-                <button onclick="appLogic.toggleCustomGoalForm()" id="toggleGoalFormBtn" class="w-full bg-gray-100 hover:bg-gray-200 text-indigo-700 font-semibold py-3 px-6 rounded-lg transition duration-150 shadow-sm flex items-center justify-center space-x-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                    <span>Add New Custom Goal</span>
+            <!-- Goal Action Buttons Container (ICON ONLY) -->
+            <div class="max-w-xl mx-auto mb-6 flex justify-end space-x-3">
+                <button onclick="appLogic.toggleCustomGoalForm()" id="toggleGoalFormBtn" class="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white transition duration-150 shadow-md" title="Add New Goal">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                </button>
+                
+                <button onclick="appLogic.showGoalDeletionModal()" id="editGoalsBtn" class="p-3 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 transition duration-150 shadow-sm" title="Edit/Delete Goals">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                 </button>
             </div>
 
@@ -363,8 +366,26 @@
         </div>
     </div>
     
-    <!-- *** CUSTOM CONFIRMATION MODAL UI *** -->
-    <div id="confirmationModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-[100] flex items-center justify-center transition-opacity duration-300 opacity-0">
+    <!-- *** GOAL EDIT/DELETION MODAL UI *** -->
+    <div id="goalEditModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-[100] flex items-center justify-center transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl p-8 shadow-2xl max-w-lg w-full transform scale-95 transition-transform duration-300">
+            <h3 class="text-2xl font-bold text-gray-900 mb-6 text-center">Manage Your Goals</h3>
+            
+            <div id="editableGoalList" class="space-y-4 max-h-96 overflow-y-auto pr-2">
+                <!-- Goal items will be injected here by renderGoalListForDeletion() -->
+            </div>
+
+            <div class="mt-8 text-center">
+                <button onclick="appLogic.hideGoalDeletionModal()" class="w-full px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md">
+                    Done Editing
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- *** END GOAL EDIT/DELETION MODAL UI *** -->
+    
+    <!-- *** CUSTOM CONFIRMATION MODAL UI (Used for Deletion Warning) *** -->
+    <div id="confirmationModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-[101] flex items-center justify-center transition-opacity duration-300 opacity-0">
         <div class="bg-white rounded-xl p-6 shadow-2xl max-w-sm w-full transform scale-95 transition-transform duration-300">
             <div class="text-center">
                 <svg class="w-12 h-12 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
@@ -430,6 +451,8 @@
             activePeriodData: {}, 
             customGoalDefinitions: {}, 
             isGoalFormVisible: false, 
+            isGoalEditModalVisible: false, // NEW STATE
+            activeGoalToDelete: null, // NEW STATE
 
             // CONSTANTS
             TRACKER_AREAS: ['pushups', 'crunches', 'squats', 'taekwondo', 'mindset'],
@@ -464,7 +487,7 @@
                 return moment().format('YYYY-MM-DD');
             },
 
-            // --- NEW FEATURE: Toggle Goal Form Visibility ---
+            // --- Goal Form and Edit/Delete Modal Management ---
             toggleCustomGoalForm() {
                 appLogic.isGoalFormVisible = !appLogic.isGoalFormVisible;
                 const form = document.getElementById('customGoalCreator');
@@ -472,11 +495,36 @@
                 
                 if (appLogic.isGoalFormVisible) {
                     form.classList.remove('hidden');
-                    button.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path></svg><span>Hide Custom Goal Form</span>';
+                    button.classList.remove('bg-indigo-600', 'hover:bg-indigo-700');
+                    button.classList.add('bg-gray-500', 'hover:bg-gray-600');
+                    button.title = 'Hide Goal Form';
                 } else {
                     form.classList.add('hidden');
-                    button.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg><span>Add New Custom Goal</span>';
+                    button.classList.remove('bg-gray-500', 'hover:bg-gray-600');
+                    button.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+                    button.title = 'Add New Goal';
                 }
+            },
+
+            showGoalDeletionModal() {
+                appLogic.isGoalEditModalVisible = true;
+                appLogic.renderGoalListForDeletion();
+                const modal = document.getElementById('goalEditModal');
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modal.classList.add('opacity-100');
+                    modal.querySelector('.transform').classList.remove('scale-95');
+                    modal.querySelector('.transform').classList.add('scale-100');
+                }, 10);
+            },
+
+            hideGoalDeletionModal() {
+                appLogic.isGoalEditModalVisible = false;
+                const modal = document.getElementById('goalEditModal');
+                modal.classList.remove('opacity-100');
+                modal.querySelector('.transform').classList.remove('scale-100');
+                modal.querySelector('.transform').classList.add('scale-95');
+                setTimeout(() => modal.classList.add('hidden'), 300);
             },
 
 
@@ -538,11 +586,25 @@
                         let dailyData = appLogic.history[todayKey] || {};
 
                         // 1. Load custom goals from the small definitions document
-                        appLogic.customGoals = Object.keys(appLogic.customGoalDefinitions);
+                        appLogic.customGoals = Object.keys(appLogic.customGoalDefinitions).filter(area => !appLogic.TRACKER_AREAS.includes(area));
 
                         // 2. Initialize today's data with fixed defaults AND custom goal definitions
                         appLogic.dailyGoalData = Object.assign({}, appLogic.DEFAULT_GOALS);
                         
+                        // NEW: Filter out fixed goals marked as deleted/hidden from rendering
+                        const activeFixedGoals = appLogic.TRACKER_AREAS.filter(area => 
+                           area === 'mindset' || // always include mindset
+                           !(appLogic.customGoalDefinitions[area] && appLogic.customGoalDefinitions[area].deleted)
+                        );
+                        
+                        // Clear out default data for fixed goals that have been deleted/hidden by the user
+                        Object.keys(appLogic.DEFAULT_GOALS).forEach(area => {
+                            if (!activeFixedGoals.includes(area)) {
+                                delete appLogic.dailyGoalData[area];
+                            }
+                        });
+
+
                         // Merge custom definitions into appLogic.dailyGoalData for today's goals
                         appLogic.customGoals.forEach(area => {
                             const def = appLogic.customGoalDefinitions[area];
@@ -596,17 +658,27 @@
                 
                 const definitionsToSave = {};
                 
+                // Save definitions for custom goals AND deletion flags for fixed goals
+                
+                // 1. Save custom goals
                 appLogic.customGoals.forEach(area => {
                     const data = appLogic.dailyGoalData[area];
                     if (data) {
                         definitionsToSave[area] = {
                             goal: data.goal,
                             unit: data.unit,
-                            // Ensure color is a fallback safe color
                             color: data.color && data.color !== 'undefined' ? data.color : 'indigo' 
                         };
                     }
                 });
+                
+                // 2. Save deletion flags for fixed goals
+                appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').forEach(area => {
+                     if (appLogic.customGoalDefinitions[area] && appLogic.customGoalDefinitions[area].deleted) {
+                         definitionsToSave[area] = { deleted: true };
+                     }
+                });
+
 
                 try {
                     setDoc(definitionsDocRef, definitionsToSave);
@@ -626,12 +698,16 @@
 
                 const dataToSave = {};
                 
-                // Save fixed and custom goals for today
-                const allCurrentGoals = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals, 'mindset');
+                // Determine all active goals to save
+                const activeFixed = appLogic.TRACKER_AREAS.filter(area => 
+                    area === 'mindset' || 
+                    !(appLogic.customGoalDefinitions[area] && appLogic.customGoalDefinitions[area].deleted)
+                );
+                
+                const allActiveGoals = activeFixed.concat(appLogic.customGoals);
 
-                allCurrentGoals.forEach(area => {
+                allActiveGoals.forEach(area => {
                     if (appLogic.dailyGoalData[area]) {
-                         // Only save data that is present in the dailyGoalData
                          dataToSave[area] = appLogic.dailyGoalData[area];
                     }
                 });
@@ -668,7 +744,7 @@
                 
                 appLogic.dailyGoalData[area].goal = goal;
                 
-                // Save definitions only for custom goals
+                // Save definitions only for custom goals. Fixed goals have their goal stored locally/in history.
                 if (appLogic.customGoals.includes(area)) {
                     appLogic.saveCustomGoalDefinitions();
                 }
@@ -718,7 +794,13 @@
                         const currentGoals = appLogic.dailyGoalData;
                         const newDailyData = { date: todayKey };
                         
-                        const allGoals = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals);
+                        // Get only the goals currently being tracked (not deleted fixed ones)
+                        const activeFixedGoals = appLogic.TRACKER_AREAS.filter(area => 
+                           area === 'mindset' || // always include mindset
+                           !(appLogic.customGoalDefinitions[area] && appLogic.customGoalDefinitions[area].deleted)
+                        );
+                        const allGoals = activeFixedGoals.filter(a => a !== 'mindset').concat(appLogic.customGoals, 'mindset');
+
 
                         allGoals.forEach(area => {
                             const data = currentGoals[area] || appLogic.DEFAULT_GOALS[area] || appLogic.customGoalDefinitions[area];
@@ -741,42 +823,99 @@
                 );
             },
             
-            removeGoal(area) {
+            // --- NEW GOAL DELETION LOGIC ---
+            renderGoalListForDeletion() {
+                const listContainer = document.getElementById('editableGoalList');
+                listContainer.innerHTML = '';
+                
+                // Combine fixed and custom goals (filtering out 'mindset' as it's not deletable)
+                const deletableFixedGoals = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset');
+                const allAreas = deletableFixedGoals.concat(appLogic.customGoals);
+
+                allAreas.forEach(area => {
+                    const data = appLogic.dailyGoalData[area] || appLogic.DEFAULT_GOALS[area] || appLogic.customGoalDefinitions[area];
+                    if (!data) return;
+
+                    const areaLabel = area.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    const isCustom = appLogic.customGoals.includes(area);
+                    const statusText = isCustom ? 
+                        `<span class="text-xs text-indigo-500 font-medium ml-2">(Custom)</span>` : 
+                        (appLogic.customGoalDefinitions[area] && appLogic.customGoalDefinitions[area].deleted) ?
+                        `<span class="text-xs text-red-500 font-medium ml-2">(Hidden)</span>` : 
+                        `<span class="text-xs text-gray-500 font-medium ml-2">(Fixed)</span>`;
+
+                    listContainer.insertAdjacentHTML('beforeend', `
+                        <div class="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg shadow-sm">
+                            <span class="text-lg font-medium text-gray-800 flex items-center">
+                                ${areaLabel} ${statusText}
+                            </span>
+                            <button onclick="appLogic.confirmGoalDeletion('${area}')" 
+                                class="flex items-center space-x-1 px-3 py-1 bg-red-500 text-white text-sm font-semibold rounded-full hover:bg-red-600 transition duration-150 transform hover:scale-[1.03]">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3m-3 0h14"></path></svg>
+                                <span>Delete</span>
+                            </button>
+                        </div>
+                    `);
+                });
+            },
+
+            confirmGoalDeletion(area) {
+                appLogic.activeGoalToDelete = area;
                 appLogic.modalActions.show(
-                    'Confirm Deletion',
-                    `Are you sure you want to permanently erase the **${area.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}** goal? This action is irreversible and will **delete ALL history** for this goal from the database.`,
-                    'Erase History',
-                    () => {
-                        appLogic.modalActions.hide();
-                        
-                        appLogic.customGoals = appLogic.customGoals.filter(g => g !== area);
-                        
-                        // Delete definition
-                        if (appLogic.customGoalDefinitions[area]) {
-                             delete appLogic.customGoalDefinitions[area];
-                             appLogic.saveCustomGoalDefinitions();
-                        }
-                        
-                        // Delete today's data (if present)
-                        if (appLogic.dailyGoalData[area]) {
-                            delete appLogic.dailyGoalData[area];
-                        }
-
-                        // Delete from history (which triggers saveHistory listener)
-                        Object.keys(appLogic.history).forEach(dateKey => {
-                            if (appLogic.history[dateKey] && appLogic.history[dateKey][area]) {
-                                delete appLogic.history[dateKey][area];
-                            }
-                        });
-
-                        appLogic.saveHistory(); // Save the modified history object
-                        
-                        appLogic.renderUI(); 
-                        appLogic.showStatusMessage(`${area.replace(/_/g, ' ')} goal successfully removed! (History erased)`, 'bg-red-600');
-                    }
+                    'Confirm Goal Deletion',
+                    `Are you absolutely sure you want to permanently delete the **${area.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}** goal? This action will **delete ALL its history** from the database and is irreversible.`,
+                    'Erase Goal & History',
+                    () => appLogic.executeGoalDeletion()
                 );
             },
             
+            executeGoalDeletion() {
+                const area = appLogic.activeGoalToDelete;
+                if (!area) return;
+
+                appLogic.hideGoalDeletionModal(); // Close the edit list modal
+
+                const isFixedGoal = appLogic.TRACKER_AREAS.includes(area) && !appLogic.customGoals.includes(area);
+
+                // 1. Delete the goal from today's data (must happen before saveHistory)
+                if (appLogic.dailyGoalData[area]) {
+                    delete appLogic.dailyGoalData[area];
+                }
+
+                // 2. Delete from history (which triggers saveHistory listener)
+                Object.keys(appLogic.history).forEach(dateKey => {
+                    if (appLogic.history[dateKey] && appLogic.history[dateKey][area]) {
+                        delete appLogic.history[dateKey][area];
+                    }
+                });
+
+                if (isFixedGoal) {
+                    // For fixed goals, we mark them as deleted in definitions so they don't load next time
+                    appLogic.customGoalDefinitions[area] = { deleted: true };
+                } else {
+                    // For custom goals, remove them from the list and delete the definition entry
+                    appLogic.customGoals = appLogic.customGoals.filter(g => g !== area);
+                    if (appLogic.customGoalDefinitions[area]) {
+                        delete appLogic.customGoalDefinitions[area];
+                    }
+                }
+                
+                appLogic.saveCustomGoalDefinitions(); // Save the definitions/deletion flag
+                appLogic.saveHistory(); // Save the history changes
+                
+                appLogic.activeGoalToDelete = null; // Clear state
+                appLogic.renderUI(); // Re-render everything to reflect changes
+                
+                // Re-open deletion modal if the user was managing multiple deletions
+                if (appLogic.isGoalEditModalVisible) {
+                    appLogic.showGoalDeletionModal();
+                }
+
+                appLogic.showStatusMessage(`${area.replace(/_/g, ' ')} goal successfully erased!`, 'bg-red-600');
+            },
+
+
+            // --- MODAL ACTIONS (Updated to handle deletion logic) ---
             modalActions: {
                 currentConfirmationCallback: null,
 
@@ -815,6 +954,7 @@
                     modal.querySelector('.transform').classList.add('scale-95');
                     setTimeout(() => modal.classList.add('hidden'), 300);
                     appLogic.modalTargetArea = null; 
+                    appLogic.activeGoalToDelete = null; // Also clear delete state
                 },
 
                 cancel() {
@@ -834,8 +974,9 @@
             renderCard(area, data, label) {
                 // Safely determine color (Tailwind safe list for dynamic generation)
                 const safeColor = data.color && ['green', 'blue', 'purple', 'red', 'indigo', 'yellow', 'pink', 'teal', 'orange'].includes(data.color) ? data.color : 'indigo';
-                const removeButton = appLogic.customGoals.includes(area) ? 
-                    `<button onclick="appLogic.removeGoal('${area}')" class="text-xs text-red-400 hover:text-red-600 font-medium transition duration-150 mt-2">Remove Goal</button>` : '';
+                
+                // The remove button has been centralized, so we remove the inline button here.
+                const removeButton = ''; // REMOVED: `<button onclick="appLogic.removeGoal('${area}')" class="text-xs text-red-400 hover:text-red-600 font-medium transition duration-150 mt-2">Remove Goal</button>` 
                 
                 // Generic SVG for custom goals
                 const customSvgPath = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>';
@@ -886,7 +1027,17 @@
                 // Create a clean key for Firebase/CSS class naming
                 const areaKey = name.toLowerCase().replace(/[^a-z0-9]/g, '_'); 
                 
+                // Check if goal key already exists (custom, fixed, or deleted fixed)
                 if (appLogic.TRACKER_AREAS.includes(areaKey) || appLogic.customGoals.includes(areaKey)) {
+                    // Special case: if fixed goal was deleted, re-enable it
+                    if (appLogic.TRACKER_AREAS.includes(areaKey) && appLogic.customGoalDefinitions[areaKey] && appLogic.customGoalDefinitions[areaKey].deleted) {
+                         delete appLogic.customGoalDefinitions[areaKey].deleted;
+                         appLogic.saveCustomGoalDefinitions();
+                         appLogic.renderUI();
+                         appLogic.toggleCustomGoalForm(); 
+                         appLogic.showStatusMessage(`Fixed Goal '${name}' reactivated!`, 'bg-indigo-600');
+                         return;
+                    }
                     appLogic.showStatusMessage(`Goal '${name}' already exists.`, 'bg-yellow-600');
                     return;
                 }
@@ -924,8 +1075,23 @@
                 const customGoalsGrid = document.getElementById('customGoalsGrid');
                 customGoalsGrid.innerHTML = ''; 
 
-                const allTrackedAreas = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals);
+                // Determine which fixed goals are active
+                const activeFixedGoals = appLogic.TRACKER_AREAS.filter(area => 
+                    area === 'mindset' || // always include mindset
+                    !(appLogic.customGoalDefinitions[area] && appLogic.customGoalDefinitions[area].deleted)
+                ).filter(a => a !== 'mindset'); 
 
+                const allTrackedAreas = activeFixedGoals.concat(appLogic.customGoals);
+                
+                // Step 1: Hide all fixed cards that are NOT in the activeFixedGoals list
+                appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').forEach(area => {
+                     const card = document.getElementById(`${area}Card`);
+                     if (card) { 
+                         card.classList.toggle('hidden', !activeFixedGoals.includes(area)); 
+                     }
+                });
+
+                // Step 2: Render/Update Active Cards
                 allTrackedAreas.forEach(area => {
                     const data = appLogic.dailyGoalData[area] || appLogic.DEFAULT_GOALS[area] || appLogic.customGoalDefinitions[area];
                     if (!data) return; // Skip if no definition found
@@ -935,12 +1101,19 @@
                     
                     if (appLogic.customGoals.includes(area)) {
                         const areaLabel = area.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                        customGoalsGrid.insertAdjacentHTML('beforeend', appLogic.renderCard(area, data, areaLabel));
+                        
+                        // Check if card already exists (to prevent full re-render flickering)
+                        const existingCard = document.getElementById(`${area}Card`);
+                        if (!existingCard) {
+                             customGoalsGrid.insertAdjacentHTML('beforeend', appLogic.renderCard(area, data, areaLabel));
+                        }
                         
                     } else {
-                         // Update fixed cards
+                         // Update fixed cards (which are now guaranteed to be visible/active)
                         const goalInput = document.getElementById(`${area}Goal`);
                         if(goalInput) goalInput.value = goal;
+                        const card = document.getElementById(`${area}Card`);
+                        if (card) { card.classList.remove('hidden'); }
                     }
 
                     const progressPercent = Math.min(100, (progress / goal) * 100);
@@ -1061,7 +1234,14 @@
             // Function to fetch and process data for a single, non-comparative range
             getRangePerformance(startDate, endDate) {
                 const dailyData = {};
-                const areaKeys = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
+                
+                // Determine all active goals
+                const activeFixedGoals = appLogic.TRACKER_AREAS.filter(area => 
+                    area === 'mindset' || // always include mindset
+                    !(appLogic.customGoalDefinitions[area] && appLogic.customGoalDefinitions[area].deleted)
+                );
+                const areaKeys = activeFixedGoals.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
+                
                 const totalCompletionByArea = areaKeys.reduce((acc, area) => ({ ...acc, [area]: 0 }), {});
                 
                 const labels = [];
@@ -1104,7 +1284,12 @@
 
             // Function to render charts in the dedicated range report container
             renderRangeReportCharts(dailyData, labels, startDate) { 
-                const allChartAreas = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
+                const activeFixedGoals = appLogic.TRACKER_AREAS.filter(area => 
+                    area === 'mindset' || // always include mindset
+                    !(appLogic.customGoalDefinitions[area] && appLogic.customGoalDefinitions[area].deleted)
+                );
+                const allChartAreas = activeFixedGoals.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
+
                 const analysisContainer = document.getElementById('rangeChartGrid');
                 analysisContainer.innerHTML = ''; 
 
@@ -1147,8 +1332,11 @@
                     red: 'rgba(248, 113, 113, 1)', pink: 'rgba(236, 72, 153, 1)', teal: 'rgba(20, 184, 166, 1)',
                     orange: 'rgba(251, 146, 60, 1)', indigo: 'rgba(79, 70, 229, 1)', yellow: 'rgba(251, 191, 36, 1)'
                 };
-                // Use a pink color for the range report to differentiate it from the main indigo analysis
-                const color = colorMap['pink']; 
+                
+                // === CHANGE: Use the goal's color instead of hardcoding pink ===
+                const color = colorMap[colorCode] || colorMap['indigo']; 
+                // =============================================================
+                
                 const label = `${areaName} Trend`;
 
                 appLogic.rangeChartData[area] = new Chart(context, {
@@ -1271,7 +1459,14 @@
             
             getDailyPerformance(duration, endDate, startDate) { 
                 const dailyData = {};
-                const areaKeys = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
+                
+                // Determine all active goals
+                const activeFixedGoals = appLogic.TRACKER_AREAS.filter(area => 
+                    area === 'mindset' || // always include mindset
+                    !(appLogic.customGoalDefinitions[area] && appLogic.customGoalDefinitions[area].deleted)
+                );
+                const areaKeys = activeFixedGoals.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
+                
                 const end = endDate;
                 const start = startDate;
                 
@@ -1303,7 +1498,13 @@
             },
             
             calculateAverages(periodData) { 
-                const areaKeys = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
+                // Determine all active goals
+                const activeFixedGoals = appLogic.TRACKER_AREAS.filter(area => 
+                    area === 'mindset' || // always include mindset
+                    !(appLogic.customGoalDefinitions[area] && appLogic.customGoalDefinitions[area].deleted)
+                );
+                const areaKeys = activeFixedGoals.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
+                
                 const total = areaKeys.reduce((acc, area) => ({ ...acc, [area]: 0 }), {});
                 const days = Object.keys(periodData).length;
                 let validAreaCount = 0;
@@ -1367,7 +1568,12 @@
                      return moment(currentPeriodStart).add(i, 'days').format('MM/DD');
                 });
                 
-                const allChartAreas = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
+                // Determine all active goals for charts
+                const activeFixedGoals = appLogic.TRACKER_AREAS.filter(area => 
+                    area === 'mindset' || // always include mindset
+                    !(appLogic.customGoalDefinitions[area] && appLogic.customGoalDefinitions[area].deleted)
+                );
+                const allChartAreas = activeFixedGoals.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
 
                 const analysisContainer = document.getElementById('chartGrid');
                 analysisContainer.innerHTML = ''; 
