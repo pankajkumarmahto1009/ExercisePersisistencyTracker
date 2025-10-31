@@ -58,14 +58,24 @@
             padding: 1.5rem;
             border-radius: 0.75rem;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            /* Ensure fixed width for scrolling on mobile grid items */
-            min-width: 180px; 
         }
         /* Style for the active period button */
         .period-active {
             background-color: #4f46e5; /* indigo-600 */
             color: white;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        /* New style for the chart wrapper to enable internal scrolling */
+        .chart-scroll-wrapper {
+            overflow-x: auto;
+            position: relative; /* Needed for chart sizing */
+            height: 100%;
+            padding-bottom: 20px; /* Space for scrollbar */
+        }
+        /* Ensure the canvas fills its content width, allowing overflow */
+        .chart-content {
+            height: 100%;
+            min-width: 100%; 
         }
     </style>
 
@@ -292,14 +302,10 @@
                     </div>
                 </div>
 
-                <!-- Chart Cards (3/4 of space on large screens) - This will be dynamically populated -->
-                <!-- WRAPPER DIV for Horizontal Scrolling on mobile -->
-                <div class="lg:col-span-3 overflow-x-auto">
-                    <div id="chartGrid" class="flex flex-row space-x-6 pb-2 lg:grid lg:grid-cols-4 lg:gap-6 lg:space-x-0">
-                        <!-- Charts will be inserted here by JavaScript -->
-                    </div>
+                <!-- Chart Cards (3/4 of space on large screens) -->
+                <div class="lg:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-6" id="chartGrid">
+                    <!-- Charts will be inserted here by JavaScript -->
                 </div>
-                
             </div>
             <!-- --- END ANALYSIS SECTION --- -->
 
@@ -1002,15 +1008,37 @@
                     });
                     
                     const chartCard = document.createElement('div');
-                    chartCard.classList.add('analysis-card', 'h-64', 'md:h-72');
-                    chartCard.innerHTML = `<canvas id="${area}Chart"></canvas>`; 
+                    // Add analysis-card and h-64/md:h-72 for standard styling and height
+                    chartCard.classList.add('analysis-card', 'h-64', 'md:h-72'); 
+
+                    // Create the inner scroll wrapper
+                    const scrollWrapper = document.createElement('div');
+                    scrollWrapper.classList.add('chart-scroll-wrapper');
+                    
+                    const canvas = document.createElement('canvas');
+                    canvas.id = `${area}Chart`;
+                    canvas.classList.add('chart-content');
+
+                    scrollWrapper.appendChild(canvas);
+                    chartCard.appendChild(scrollWrapper);
                     analysisContainer.appendChild(chartCard); 
                     
-                    appLogic.drawChart(area, labels, currentTrend, previousTrend);
+                    // --- NEW LOGIC: Force minimum width for horizontal scrolling on long periods ---
+                    // Only apply a forced width if the period is longer than 7 days (e.g., Month or All Time)
+                    let chartContentWidth = '100%';
+                    if (duration > 7) {
+                        // Calculate width based on number of data points (e.g., 20px per day minimum)
+                        chartContentWidth = `${Math.max(chartCard.clientWidth, duration * 20)}px`;
+                    }
+                    
+                    canvas.style.minWidth = chartContentWidth;
+                    // --- END NEW LOGIC ---
+
+                    appLogic.drawChart(area, labels, currentTrend, previousTrend, chartContentWidth);
                 });
             },
 
-            drawChart(area, labels, currentTrend, previousTrend) { 
+            drawChart(area, labels, currentTrend, previousTrend, forcedWidth) { 
                 if (appLogic.charts[area]) { appLogic.charts[area].destroy(); }
                 const ctx = document.getElementById(`${area}Chart`);
                 if (!ctx) return;
@@ -1060,7 +1088,10 @@
                         ]
                     },
                     options: {
-                        responsive: true, maintainAspectRatio: false,
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        // If we force width, we must set aspectRatio to a value > 1 or false if we need a fluid height
+                        aspectRatio: forcedWidth !== '100%' ? null : 1, 
                         plugins: {
                             legend: { display: false },
                             title: { display: true, text: label, color: '#4B5563', padding: { top: 10, bottom: 5 } }
