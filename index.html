@@ -1415,7 +1415,7 @@
                         const definition = appLogic.dailyGoalData[area] || appLogic.DEFAULT_GOALS[area] || appLogic.customGoalDefinitions[area];
                         if (!definition) return;
                         
-                        const areaData = data && data[area] ? data[area] : { progress: 0, goal: definition.goal, unit: definition.unit };
+                        const areaData = data && data[area] ? data[area] : { progress: 0, goal: definition.goal, unit: definition.minute };
                         
                         const progress = areaData.progress || 0;
                         const goal = areaData.goal || definition.goal; 
