@@ -58,6 +58,8 @@
             padding: 1.5rem;
             border-radius: 0.75rem;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            /* Ensure fixed width for scrolling on mobile grid items */
+            min-width: 180px; 
         }
         /* Style for the active period button */
         .period-active {
@@ -287,9 +289,13 @@
                 </div>
 
                 <!-- Chart Cards (3/4 of space on large screens) - This will be dynamically populated -->
-                <div id="chartGrid" class="lg:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <!-- Charts will be inserted here by JavaScript -->
+                <!-- NEW WRAPPER DIV for Horizontal Scrolling on mobile -->
+                <div class="lg:col-span-3 overflow-x-auto">
+                    <div id="chartGrid" class="flex flex-row space-x-6 pb-2 lg:grid lg:grid-cols-4 lg:gap-6 lg:space-x-0">
+                        <!-- Charts will be inserted here by JavaScript -->
+                    </div>
                 </div>
+                
             </div>
             <!-- --- END ANALYSIS SECTION --- -->
 
@@ -324,9 +330,6 @@
         </div>
     </div>
     <!-- *** END CONFIRMATION MODAL UI *** -->
-
-    <!-- *** GOAL DETAIL MODAL UI (REMOVED) *** -->
-
 
     <script>
         // Global instance variables for Firebase services and tracking state
@@ -869,7 +872,6 @@
                 return { duration, previousDuration };
             },
             
-            // *** REVERTED: Now uses 0 instead of null for missing data, simplifying chart logic ***
             getDailyPerformance(duration, endDate, startDate) { 
                 const dailyData = {};
                 const areaKeys = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
@@ -891,7 +893,6 @@
                         const goal = areaData.goal || currentData.goal; 
                         const completion = Math.min(100, (progress / goal) * 100);
                         
-                        // REVERTED to return 0 for simplicity and avoiding complex rendering logic
                         result[area] = completion; 
                     });
                     dailyData[dateKey] = result;
@@ -979,10 +980,12 @@
                         return previousDataRaw[prevDateKey] ? previousDataRaw[prevDateKey][area] : 0;
                     });
                     
+                    // Note: analysis-card now has a min-width defined in CSS
                     const chartCard = document.createElement('div');
                     chartCard.classList.add('analysis-card', 'h-64', 'md:h-72');
-                    chartCard.innerHTML = `<canvas id="${area}Chart"></canvas>`; // Removed onclick
-                    analysisContainer.appendChild(chartCard);
+                    chartCard.innerHTML = `<canvas id="${area}Chart"></canvas>`; 
+                    // For mobile scrolling: append directly to the flex container
+                    analysisContainer.appendChild(chartCard); 
                     
                     appLogic.drawChart(area, labels, currentTrend, previousTrend);
                 });
@@ -1017,11 +1020,11 @@
                                 data: currentTrend, 
                                 borderColor: color, 
                                 backgroundColor: color.replace('1)', '0.1)'), 
-                                fill: true, // REVERTED to fill for better visual context
-                                tension: 0.4, // Increased tension slightly for smooth look
+                                fill: true, 
+                                tension: 0.4, 
                                 pointRadius: 3, 
                                 borderWidth: 3,
-                                spanGaps: false // REVERTED: Do not span gaps (use 0s)
+                                spanGaps: false 
                             },
                             { 
                                 label: 'Previous Period', 
@@ -1047,10 +1050,9 @@
                             x: { 
                                 grid: { display: false }, 
                                 ticks: { 
-                                    autoSkip: true, // REVERTED: Allow Chart.js to skip labels
+                                    autoSkip: true, 
                                     maxRotation: 0, 
                                     minRotation: 0,
-                                    // Removed maxTicksLimit and callback logic
                                 }
                             },
                             y: { 
