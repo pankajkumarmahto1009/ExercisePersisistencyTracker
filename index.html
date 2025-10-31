@@ -65,6 +65,18 @@
             color: white;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
+        /* New style for the chart wrapper to enable internal scrolling */
+        .chart-scroll-wrapper {
+            overflow-x: auto;
+            position: relative; /* Needed for chart sizing */
+            height: 100%;
+            padding-bottom: 20px; /* Space for scrollbar */
+        }
+        /* Ensure the canvas fills its content width, allowing overflow */
+        .chart-content {
+            height: 100%;
+            min-width: 100%; 
+        }
     </style>
 
 </head>
@@ -374,7 +386,7 @@
             activePeriodData: {}, 
             customGoalDefinitions: {}, 
             isGoalFormVisible: false, 
-            dateOffset: 0, // NEW: 0 = current period, 1 = previous period, etc.
+            dateOffset: 0, // 0 = current period, 1 = previous period, etc.
 
             // CONSTANTS - UPDATED FOR EXERCISE TRACKING
             TRACKER_AREAS: ['pushups', 'crunches', 'squats', 'taekwondo', 'mindset'],
@@ -892,7 +904,8 @@
             getAnalysisDuration() { 
                 const today = moment().startOf('day');
                 
-                let durationDays, timeUnit, periodMultiplier;
+                let durationDays;
+                let timeUnit;
                 
                 // Define base durations and time unit for offset calculation
                 switch (appLogic.activePeriod) {
@@ -900,89 +913,111 @@
                     default:
                         durationDays = 7;
                         timeUnit = 'days';
-                        periodMultiplier = 1;
                         break;
                     case 'month':
-                        durationDays = 30; // Approximation for visualization purposes
+                        durationDays = 30; // 30 days visualization
                         timeUnit = 'months';
-                        periodMultiplier = 1;
                         break;
                     case 'year':
-                        durationDays = 365; // Approximation
+                        durationDays = 365; // 365 days visualization
                         timeUnit = 'years';
-                        periodMultiplier = 1;
                         break;
                     case 'all':
                         const historyDates = Object.keys(appLogic.history).sort();
-                        if (historyDates.length === 0) { durationDays = 1; break; }
-                        const firstDay = moment(historyDates[0], 'YYYY-MM-DD');
-                        durationDays = today.diff(firstDay, 'days') + 1;
+                        if (historyDates.length === 0) { durationDays = 1; } else {
+                            const firstDay = moment(historyDates[0], 'YYYY-MM-DD');
+                            durationDays = today.diff(firstDay, 'days') + 1;
+                        }
                         timeUnit = 'days';
-                        periodMultiplier = durationDays; // Offset by the whole duration in 'all' mode
                         break;
                 }
                 
-                // Calculate the true duration for the period type
-                let end, start;
-                let referenceDate = moment(today);
+                // 1. Determine the end date of the CURRENTLY DISPLAYED period (shifted by offset)
+                let end = moment(today);
                 
-                if (appLogic.activePeriod === 'all') {
-                    // For 'all', we just use the entire history range
-                    const historyDates = Object.keys(appLogic.history).sort();
-                    if (historyDates.length === 0) {
-                        start = moment(today);
-                        end = moment(today);
-                    } else {
-                         // Find the range based on history and offset
-                         const sortedDates = Object.keys(appLogic.history).sort();
-                         const totalDays = sortedDates.length;
-                         const chunk = 365; // Chunk size for scrolling in 'All Time' view
-                         
-                         const totalChunks = Math.ceil(totalDays / chunk);
-                         const offsetPeriods = Math.min(appLogic.dateOffset, totalChunks -1); // Clamp the offset
-                         
-                         // Start date is chunk * offset from the earliest day
-                         const historyStart = moment(sortedDates[0], 'YYYY-MM-DD');
-                         
-                         // Determine the scrolling window
-                         start = moment(historyStart).add(offsetPeriods * chunk, 'days');
-                         end = moment(start).add(chunk - 1, 'days');
-                         
-                         // Ensure end does not exceed today
-                         if (end.isAfter(today)) end = today;
-                    }
-
-                    // For comparison purposes, we use the previous chunk size
-                    let previousStart = moment(start).subtract(chunk, 'days');
-                    let previousEnd = moment(start).subtract(1, 'day');
-                    
-                    if (previousStart.isBefore(moment(sortedDates[0], 'YYYY-MM-DD'))) previousStart = moment(sortedDates[0], 'YYYY-MM-DD');
-                    
-                    const currentDays = end.diff(start, 'days') + 1;
-                    const previousDays = previousEnd.diff(previousStart, 'days') + 1;
-                    
-                    return { duration: currentDays, previousDuration: previousDays, start: start, end: end, previousStart: previousStart, previousEnd: previousEnd };
-
-                } else {
-                    // Standard period shifting
-                    const offsetAmount = appLogic.dateOffset * periodMultiplier;
-                    
-                    // The end date is offset periods back from today's end of day
-                    end = moment(today).subtract(offsetAmount, timeUnit);
-                    
-                    // The start date is the end date minus the base duration
-                    start = moment(end).subtract(durationDays - 1, 'days');
-                    
-                    // Comparison period (1 period before current start)
-                    let previousEnd = moment(start).subtract(1, 'day');
-                    let previousStart = moment(previousEnd).subtract(durationDays - 1, 'days');
-                    
-                    return { duration: durationDays, previousDuration: durationDays, start: start, end: end, previousStart: previousStart, previousEnd: previousEnd };
+                if (appLogic.activePeriod !== 'all') {
+                    // Shift the period back by the offset amount (e.g., 1 month * 2 offset = 2 months back)
+                    end = moment(today).subtract(appLogic.dateOffset, timeUnit);
                 }
+                
+                // 2. Determine the start date of the CURRENTLY DISPLAYED period
+                let start = moment(end).subtract(durationDays - 1, 'days');
+                
+                // 3. Determine the dates for the PREVIOUS comparison period
+                let previousEnd = moment(start).subtract(1, 'day');
+                let previousStart = moment(previousEnd).subtract(durationDays - 1, 'days');
+                
+                // --- NEW LOGIC: CLAMPING TO EARLIEST HISTORY DATE ---
+                
+                const sortedHistoryDates = Object.keys(appLogic.history).sort();
+                const earliestLogDate = sortedHistoryDates.length > 0 
+                    ? moment(sortedHistoryDates[0], 'YYYY-MM-DD').startOf('day') 
+                    : moment(today); // If no history, use today
+                
+                const canGoBack = start.isAfter(earliestLogDate);
+                
+                // If the calculated period starts before history, reset offset back to the earliest possible view
+                if (start.isBefore(earliestLogDate) && appLogic.activePeriod !== 'all') {
+                    // If the difference is large, it means we are outside the history range.
+                    // We need to calculate how many full periods we have before the current offset
+                    // Note: Since we use moment.subtract, an invalid date will be created.
+                    
+                    // We only display as far back as the first available log day.
+                    if (start.isBefore(earliestLogDate)) {
+                        start = earliestLogDate;
+                        // Recalculate end date based on the durationDays, keeping the duration constant
+                        end = moment(start).add(durationDays - 1, 'days');
+                        
+                        // Recalculate the offset required for this "clamped" period (Complex and prone to errors).
+                        // Instead of recalculating the offset, let's just adjust the start/end and disable the button.
+                    }
+                }
+                
+                // --- END CLAMPING LOGIC ---
+
+
+                // For "All Time" mode, redefine start/end based on history
+                if (appLogic.activePeriod === 'all') {
+                    if (sortedHistoryDates.length > 0) {
+                        start = earliestLogDate;
+                        end = today;
+                    }
+                    durationDays = end.diff(start, 'days') + 1;
+                    
+                    // Previous period for "All Time" is the first half of history
+                    const halfDuration = Math.floor(durationDays / 2);
+                    previousStart = start;
+                    previousEnd = moment(start).add(halfDuration - 1, 'days');
+                    start = moment(previousEnd).add(1, 'day');
+                    end = today;
+                }
+                
+                return { 
+                    duration: durationDays, 
+                    previousDuration: previousStart.diff(previousEnd, 'days') + 1, 
+                    start: start, 
+                    end: end, 
+                    previousStart: previousStart, 
+                    previousEnd: previousEnd,
+                    canGoBack: canGoBack
+                };
             },
             
             renderAnalysis() { 
-                const { duration, start, end, previousStart, previousEnd } = appLogic.getAnalysisDuration();
+                const { duration, start, end, previousStart, previousEnd, canGoBack } = appLogic.getAnalysisDuration();
+                
+                // Ensure data processing only runs if duration is valid
+                if (duration <= 0) {
+                    document.getElementById('currentPeriodLabel').textContent = `N/A`;
+                    document.getElementById('previousPeriodLabel').textContent = `N/A`;
+                    document.getElementById('currentAvgScore').textContent = `0%`;
+                    document.getElementById('previousAvgScore').textContent = `0%`;
+                    document.getElementById('scoreDifference').innerHTML = `→ 0%`;
+                    document.getElementById('prevPeriodBtn').disabled = true;
+                    document.getElementById('nextPeriodBtn').disabled = true;
+                    document.getElementById('chartGrid').innerHTML = '<p class="text-center text-gray-500 col-span-4 mt-8">No data for the selected period.</p>';
+                    return;
+                }
                 
                 const currentDataRaw = appLogic.getDailyPerformance(duration, end, start);
                 const previousDataRaw = appLogic.getDailyPerformance(duration, previousEnd, previousStart);
@@ -1007,8 +1042,17 @@
                 diffElement.classList.toggle('text-green-600', diff >= 0);
                 diffElement.classList.toggle('text-red-600', diff < 0);
                 
-                // Disable 'Next' button if we are viewing the current period (offset 0)
+                // Disable 'Next' button if viewing the current period (offset 0)
                 document.getElementById('nextPeriodBtn').disabled = appLogic.dateOffset === 0;
+                
+                // Disable 'Previous' button if we can't go back further
+                // We use the simpler check: if the requested period start is close to the earliest log date, disable it.
+                const earliestLog = Object.keys(appLogic.history).sort()[0];
+                const startOfPreviousPeriod = moment(previousStart.format('YYYY-MM-DD'), 'YYYY-MM-DD').startOf('day');
+                const earliestMoment = moment(earliestLog, 'YYYY-MM-DD').startOf('day');
+                
+                document.getElementById('prevPeriodBtn').disabled = startOfPreviousPeriod.isBefore(earliestMoment);
+
 
                 const labels = Array.from({ length: duration }, (_, i) => {
                      return moment(start).add(i, 'days').format('MM/DD');
@@ -1048,7 +1092,6 @@
                     // --- NEW LOGIC: Force minimum width for horizontal scrolling on periods > 7 days ---
                     let chartContentWidth = '100%';
                     if (duration > 7) {
-                        // Max width is 1000px, min width is based on data density
                         chartContentWidth = `${Math.max(chartCard.clientWidth, duration * 18)}px`;
                     }
                     
