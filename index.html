@@ -7,7 +7,7 @@
     
     <!-- PWA / Icon Setup -->
     <link rel="manifest" href="/manifest.json">
-    <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgoBMwmUtsrDIRDuc6h1GyYpKuI2bN9H2A_QzFSXQBd831PsPx7jcI6cQzG4Hu4VoP6gOVtER_C2_bFkbrMc_luHEWi5X4Uq3ksO8LqXVOR-E_KJLNOLV_OUmOHggCEZ83sMvV9A6PccY_G-18lFP0Q9NgNmNarH9QgSdWq02gOWnRXo2O419pSFb-X-zA/s1024/1000134900.jpg" sizes="192x192">
+    <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgoBMwmUtsrDIRDuc6h1GyYpKuI2bN9H2A_QzFSXQBd831PsPx7jcI6cQzG4Hu4VoP6gOVtER_C2_bFkbrMc_luHEWi5X4Uq3ksO8LqXVOR-E_KJLNOLV_OUmOHggCEZ83sMvV9A6PccG_G-18lFP0Q9NgNmNarH9QgSdWq02gOWnRXo2O419pSFb-X-zA/s1024/1000134900.jpg" sizes="192x192">
     <meta name="theme-color" content="#4F46E5">
     
     <!-- Load Tailwind CSS -->
@@ -65,10 +65,10 @@
             color: white;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
-        /* Style for the date picker */
-        #monthYearPicker {
+        /* Style for the date picker (kept for reference, using standard inputs now) */
+        input[type="month"], input[type="date"] {
             border: 1px solid #d1d5db; /* gray-300 */
-            border-radius: 9999px; /* full rounded */
+            border-radius: 0.5rem; 
             padding: 0.5rem 1rem;
             font-size: 0.875rem;
             color: #4b5563; /* gray-700 */
@@ -77,10 +77,16 @@
             transition: border-color 0.15s ease-in-out;
             outline: none;
         }
-        #monthYearPicker:focus {
+        input[type="month"]:focus, input[type="date"]:focus {
             border-color: #4f46e5; /* indigo-600 */
             box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
         }
+        /* Additional styling for the new range report charts to ensure they occupy full width on mobile */
+        #rangeChartGrid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        }
+
     </style>
 
 </head>
@@ -268,7 +274,7 @@
             <!-- --- ANALYSIS SECTION (Charts) --- -->
             <h2 class="text-2xl font-bold text-gray-800 text-center mb-6 pt-4 border-t border-gray-300">Analysis & Trends</h2>
             
-            <!-- Period Selector -->
+            <!-- Period Selector for Comparative Analysis -->
             <div class="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-4 mb-8 flex-wrap">
                 <button id="weekBtn" onclick="appLogic.setAnalysisPeriod('week')" class="period-btn py-2 px-4 sm:px-6 rounded-full text-sm sm:text-base text-gray-700 border border-gray-300 hover:bg-indigo-100 transition duration-150">
                     Compare Week
@@ -284,15 +290,25 @@
                 </button>
             </div>
             
-            <!-- Historical Date Picker -->
-            <div class="flex justify-center items-center space-x-3 mb-8">
-                <input type="month" id="monthYearPicker" value="" class="text-sm">
-                <button onclick="appLogic.viewHistoricalReport()" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-full text-sm font-semibold transition duration-150 shadow-md">
-                    View Report
-                </button>
+            <!-- NEW: Custom Date Range Selector (Replaces old month picker) -->
+            <div class="max-w-xl mx-auto mb-8 p-6 bg-gray-50 rounded-xl shadow-inner border border-gray-200">
+                <h3 class="text-lg font-bold text-gray-700 mb-4">View Specific Date Range</h3>
+                <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 items-end">
+                    <div class="flex-1 w-full">
+                        <label for="startDatePicker" class="block text-xs font-medium text-gray-500 mb-1">Start Date</label>
+                        <input type="date" id="startDatePicker" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-400 focus:border-indigo-400">
+                    </div>
+                    <div class="flex-1 w-full">
+                        <label for="endDatePicker" class="block text-xs font-medium text-gray-500 mb-1">End Date</label>
+                        <input type="date" id="endDatePicker" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-400 focus:border-indigo-400">
+                    </div>
+                    <button onclick="appLogic.generateRangeReport()" class="w-full sm:w-auto bg-pink-500 hover:bg-pink-600 text-white font-semibold py-2 px-4 rounded-lg text-sm transition duration-150 shadow-md flex-shrink-0">
+                        Generate Report
+                    </button>
+                </div>
             </div>
 
-
+            <!-- Main Comparative Analysis Grid (Stays the same) -->
             <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-10">
                 <!-- Comparison Card -->
                 <div class="analysis-card border-t-4 border-indigo-500 lg:col-span-1 flex flex-col justify-center items-center text-center">
@@ -319,12 +335,23 @@
                 <!-- WRAPPER DIV for Horizontal Scrolling on mobile -->
                 <div class="lg:col-span-3 overflow-x-auto">
                     <div id="chartGrid" class="flex flex-row space-x-6 pb-2 lg:grid lg:grid-cols-4 lg:gap-6 lg:space-x-0">
-                        <!-- Charts will be inserted here by JavaScript -->
+                        <!-- Comparative Charts will be inserted here by JavaScript -->
                     </div>
                 </div>
                 
             </div>
-            <!-- --- END ANALYSIS SECTION --- -->
+            <!-- --- END COMPARATIVE ANALYSIS SECTION --- -->
+
+
+            <!-- NEW: Date Range Report Container -->
+            <div id="rangeReportContainer" class="hidden mt-12 mb-10 pt-8 border-t border-pink-300">
+                <h3 class="text-2xl font-bold text-gray-800 text-center mb-6">
+                    Date Range Report: <span id="reportRangeDates" class="text-pink-600 font-extrabold"></span>
+                </h3>
+                <div id="rangeChartGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- Range Charts will be inserted here by JavaScript -->
+                </div>
+            </div>
 
 
             <!-- Reset Button -->
@@ -395,14 +422,14 @@
             userId: null,
             history: {}, 
             dailyGoalData: {}, 
-            charts: {}, 
-            activePeriod: 'week', // 'week', 'month', 'year', 'all', or 'custom'
+            charts: {}, // Charts for comparative analysis (Week/Month/Year/All)
+            rangeChartData: {}, // NEW: Charts for the specific date range report
+            activePeriod: 'week', 
             customGoals: [], 
             modalTargetArea: null, 
             activePeriodData: {}, 
             customGoalDefinitions: {}, 
             isGoalFormVisible: false, 
-            customDateTarget: null, // Stores moment object for custom date analysis
 
             // CONSTANTS
             TRACKER_AREAS: ['pushups', 'crunches', 'squats', 'taekwondo', 'mindset'],
@@ -670,7 +697,6 @@
                 appLogic.showStatusMessage(`Logged ${value} ${appLogic.dailyGoalData[area].unit} for ${area.replace(/_/g, ' ')}!`, 'bg-green-500');
             },
             
-            // ... (mindset functions remain the same) ...
             toggleMindsetStatus() { 
                 const area = 'mindset';
                 appLogic.dailyGoalData[area].is100 = !appLogic.dailyGoalData[area].is100;
@@ -966,121 +992,270 @@
                     document.getElementById('believeCard').classList.add('border-yellow-400');
                 }
                 
-                // Initialize month picker with current month's value
-                const todayMoment = moment();
-                document.getElementById('monthYearPicker').value = todayMoment.format('YYYY-MM');
+                // Initialize date pickers with today's date for ease of use
+                const todayFormatted = moment().format('YYYY-MM-DD');
+                const startDatePicker = document.getElementById('startDatePicker');
+                const endDatePicker = document.getElementById('endDatePicker');
+                if (startDatePicker) startDatePicker.value = moment().subtract(6, 'days').format('YYYY-MM-DD');
+                if (endDatePicker) endDatePicker.value = todayFormatted;
 
                 appLogic.setAnalysisPeriod(appLogic.activePeriod);
             },
             
             // --- ANALYSIS & CHARTING ---
 
-            // NEW FUNCTION to handle the View Report button click
-            viewHistoricalReport() {
-                const picker = document.getElementById('monthYearPicker');
-                const monthYear = picker.value;
+            // NEW FUNCTION: Generate Report for Specific Date Range
+            generateRangeReport() {
+                const startInput = document.getElementById('startDatePicker');
+                const endInput = document.getElementById('endDatePicker');
+                
+                const startDate = moment(startInput.value, 'YYYY-MM-DD').startOf('day');
+                const endDate = moment(endInput.value, 'YYYY-MM-DD').startOf('day');
 
-                if (!monthYear) {
-                    appLogic.showStatusMessage('Please select a month and year.', 'bg-red-500');
+                if (!startDate.isValid() || !endDate.isValid()) {
+                    appLogic.showStatusMessage('Please select valid start and end dates.', 'bg-red-500');
+                    return;
+                }
+
+                if (startDate.isAfter(endDate)) {
+                    appLogic.showStatusMessage('Start Date cannot be after End Date.', 'bg-red-500');
                     return;
                 }
                 
-                // Parse the YYYY-MM string into a moment object
-                const targetDate = moment(monthYear, 'YYYY-MM');
+                // Check if the range is too large (e.g., limit to 365 days for chart readability)
+                if (endDate.diff(startDate, 'days') > 365) {
+                    appLogic.showStatusMessage('Please select a date range of 365 days or less for better chart performance.', 'bg-yellow-600');
+                }
                 
-                // Set the custom analysis target and trigger rendering
-                appLogic.customDateTarget = targetDate;
-                appLogic.setAnalysisPeriod('custom');
+                // Get the performance data for the selected range (no comparison needed)
+                const { dailyData, labels, total, days } = appLogic.getRangePerformance(startDate, endDate);
+                
+                // Calculate overall average for the report title
+                const allAreas = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals);
+                let totalCompletion = 0;
+                let validGoalsCount = 0;
+
+                allAreas.forEach(area => {
+                    const avg = days > 0 ? total[area] / days : 0;
+                    if (!isNaN(avg)) {
+                        totalCompletion += avg;
+                        validGoalsCount++;
+                    }
+                });
+
+                const overallAvg = validGoalsCount > 0 ? (totalCompletion / validGoalsCount) : 0;
+                const overallAvgText = Math.round(overallAvg) + '% Avg. Completion';
+
+
+                // Update the UI title
+                const rangeDisplay = document.getElementById('reportRangeDates');
+                rangeDisplay.textContent = `${startDate.format('MMM D, YYYY')} to ${endDate.format('MMM D, YYYY')} (${overallAvgText})`;
+
+                // Render the charts in the dedicated container
+                appLogic.renderRangeReportCharts(dailyData, labels, startDate);
+                document.getElementById('rangeReportContainer').classList.remove('hidden');
+                
+                appLogic.showStatusMessage('Date Range Report generated successfully!', 'bg-pink-600');
+            },
+            
+            // Function to fetch and process data for a single, non-comparative range
+            getRangePerformance(startDate, endDate) {
+                const dailyData = {};
+                const areaKeys = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
+                const totalCompletionByArea = areaKeys.reduce((acc, area) => ({ ...acc, [area]: 0 }), {});
+                
+                const labels = [];
+                let daysInPeriod = 0;
+
+                // Loop through dates from start to end (inclusive)
+                for (let date = moment(startDate); date.isSameOrBefore(endDate); date.add(1, 'days')) {
+                    const dateKey = date.format('YYYY-MM-DD');
+                    labels.push(date.format('MM/DD'));
+                    
+                    const data = appLogic.history[dateKey];
+                    const result = {};
+                    
+                    areaKeys.forEach(area => {
+                        const definition = appLogic.dailyGoalData[area] || appLogic.DEFAULT_GOALS[area] || appLogic.customGoalDefinitions[area];
+                        if (!definition) return;
+                        
+                        // Use the historical data if available, otherwise assume 0 progress
+                        const areaData = data && data[area] ? data[area] : { progress: 0, goal: definition.goal, unit: definition.unit };
+                        
+                        const progress = areaData.progress || 0;
+                        const goal = areaData.goal || definition.goal; 
+                        
+                        const completion = goal > 0 ? Math.min(100, (progress / goal) * 100) : 0;
+                        
+                        result[area] = completion;
+                        totalCompletionByArea[area] += completion;
+                    });
+                    dailyData[dateKey] = result;
+                    daysInPeriod++;
+                }
+
+                return { 
+                    dailyData: dailyData, 
+                    labels: labels, 
+                    total: totalCompletionByArea,
+                    days: daysInPeriod
+                };
             },
 
-            // Updated setAnalysisPeriod to handle custom date target
+            // Function to render charts in the dedicated range report container
+            renderRangeReportCharts(dailyData, labels, startDate) { 
+                const allChartAreas = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
+                const analysisContainer = document.getElementById('rangeChartGrid');
+                analysisContainer.innerHTML = ''; 
+
+                // Destroy existing charts in the range container
+                Object.keys(appLogic.rangeChartData).forEach(chart => {
+                    if (appLogic.rangeChartData[chart]) { appLogic.rangeChartData[chart].destroy(); }
+                });
+                appLogic.rangeChartData = {};
+
+                allChartAreas.forEach(area => {
+                    const data = appLogic.dailyGoalData[area] || appLogic.DEFAULT_GOALS[area] || appLogic.customGoalDefinitions[area];
+                    if (!data) return; 
+
+                    // Extract trend data for the specific range
+                    const currentTrend = labels.map((label, i) => {
+                         // Find the date key corresponding to the label
+                         const date = moment(startDate).add(i, 'days').format('YYYY-MM-DD');
+                         return dailyData[date] && dailyData[date][area] !== undefined ? dailyData[date][area] : 0; 
+                    });
+                    
+                    const chartCard = document.createElement('div');
+                    // Add h-64 for height on mobile and ensure full width
+                    chartCard.classList.add('analysis-card', 'h-64', 'lg:h-72', 'range-report-chart'); 
+                    chartCard.innerHTML = `<canvas id="rangeChart_${area}"></canvas>`; 
+                    analysisContainer.appendChild(chartCard); 
+                    
+                    appLogic.drawRangeChart(area, labels, currentTrend, data.color);
+                });
+            },
+
+            // Drawing function for the specific date range report
+            drawRangeChart(area, labels, trend, colorCode) { 
+                const ctx = document.getElementById(`rangeChart_${area}`);
+                if (!ctx) return;
+                const context = ctx.getContext('2d');
+
+                const areaName = area.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); 
+                const colorMap = {
+                    green: 'rgba(52, 211, 153, 1)', blue: 'rgba(96, 165, 250, 1)', purple: 'rgba(167, 139, 250, 1)',
+                    red: 'rgba(248, 113, 113, 1)', pink: 'rgba(236, 72, 153, 1)', teal: 'rgba(20, 184, 166, 1)',
+                    orange: 'rgba(251, 146, 60, 1)', indigo: 'rgba(79, 70, 229, 1)', yellow: 'rgba(251, 191, 36, 1)'
+                };
+                // Use a pink color for the range report to differentiate it from the main indigo analysis
+                const color = colorMap['pink']; 
+                const label = `${areaName} Trend`;
+
+                appLogic.rangeChartData[area] = new Chart(context, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { 
+                                label: 'Completion (%)', 
+                                data: trend, 
+                                borderColor: color, 
+                                backgroundColor: color.replace('1)', '0.1)'), 
+                                fill: true, 
+                                tension: 0.4, 
+                                pointRadius: 3, 
+                                borderWidth: 3,
+                                spanGaps: false 
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            title: { display: true, text: label, color: '#4B5563', padding: { top: 10, bottom: 5 } }
+                        },
+                        scales: {
+                            x: { 
+                                grid: { display: false }, 
+                                ticks: { autoSkip: true, maxRotation: 0, minRotation: 0 }
+                            },
+                            y: { 
+                                min: 0, 
+                                max: 100, 
+                                title: { display: true, text: 'Completion (%)' },
+                                suggestedMin: 0
+                            }
+                        }
+                    }
+                });
+            },
+
+            // Comparative Analysis functions below (largely unchanged, but 'custom' case removed)
+
             setAnalysisPeriod(period) {
                 appLogic.activePeriod = period;
                 
-                // Remove active styling from all default period buttons
+                // Remove active styling from all period buttons
                 document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('period-active'));
 
-                // Apply active styling only if it's a non-custom period button
-                if (period !== 'custom') {
-                    const activeBtn = document.getElementById(`${period}Btn`);
-                    if (activeBtn) { activeBtn.classList.add('period-active'); }
-                    appLogic.customDateTarget = null; // Clear custom target for default modes
-                } else {
-                     // For custom mode, we use the date picker's month value to highlight its use
-                }
+                // Apply active styling to the selected button
+                const activeBtn = document.getElementById(`${period}Btn`);
+                if (activeBtn) { activeBtn.classList.add('period-active'); }
+
+                // Hide the custom range report when viewing comparative analysis
+                document.getElementById('rangeReportContainer').classList.add('hidden');
 
                 appLogic.renderAnalysis();
             },
 
-            // Updated getAnalysisDuration to calculate date ranges for custom month report
             getAnalysisDuration() { 
                 const today = moment().startOf('day');
                 let duration, previousDuration;
                 let currentPeriodStart, currentPeriodEnd, previousPeriodStart, previousPeriodEnd;
                 let currentLabel, previousLabel;
 
-                if (appLogic.activePeriod === 'custom' && appLogic.customDateTarget) {
-                    // Custom Month Report Logic
-                    const targetMonth = appLogic.customDateTarget.clone();
-                    
-                    currentPeriodStart = targetMonth.startOf('month').startOf('day');
-                    currentPeriodEnd = targetMonth.endOf('month').startOf('day');
-                    
-                    const prevMonth = targetMonth.clone().subtract(1, 'month');
-                    previousPeriodStart = prevMonth.startOf('month').startOf('day');
-                    previousPeriodEnd = prevMonth.endOf('month').startOf('day');
+                // Default Period Logic ('week', 'month', 'year', 'all')
+                const end = today;
 
-                    // Calculate number of days in the month
-                    duration = currentPeriodEnd.diff(currentPeriodStart, 'days') + 1;
-                    previousDuration = previousPeriodEnd.diff(previousPeriodStart, 'days') + 1;
-                    
-                    currentLabel = currentPeriodStart.format('MMMM YYYY');
-                    previousLabel = previousPeriodStart.format('MMMM YYYY');
-
-                } else {
-                    // Default Period Logic ('week', 'month', 'year', 'all')
-                    const end = today;
-
-                    switch (appLogic.activePeriod) {
-                        case 'week': 
-                            duration = 7; previousDuration = 7;
-                            currentLabel = 'Current Week'; 
-                            previousLabel = 'Previous Week';
-                            break;
-                        case 'month': 
-                            duration = 30; previousDuration = 30; 
-                            currentLabel = 'Last 30 Days';
-                            previousLabel = 'Previous 30 Days';
-                            break;
-                        case 'year': 
-                            duration = 365; previousDuration = 365; 
-                            currentLabel = 'Last Year';
-                            previousLabel = 'Year Before';
-                            break;
-                        case 'all':
-                            const historyDates = Object.keys(appLogic.history).sort();
-                            if (historyDates.length === 0) { 
-                                duration = 1; previousDuration = 0; 
-                            } else {
-                                const firstDay = moment(historyDates[0], 'YYYY-MM-DD').startOf('day');
-                                const totalDays = today.diff(firstDay, 'days') + 1;
-                                duration = Math.ceil(totalDays / 2); previousDuration = Math.floor(totalDays / 2); 
-                            }
-                            currentLabel = 'Second Half (All Time)';
-                            previousLabel = 'First Half (All Time)';
-                            break;
-                        default: 
-                            duration = 7; previousDuration = 7;
-                            currentLabel = 'Current Week'; 
-                            previousLabel = 'Previous Week';
-                    }
-
-                    currentPeriodStart = moment(end).subtract(duration - 1, 'days').startOf('day');
-                    currentPeriodEnd = end;
-                    previousPeriodEnd = moment(currentPeriodStart).subtract(1, 'second').startOf('day');
-                    previousPeriodStart = moment(previousPeriodEnd).subtract(previousDuration - 1, 'days').startOf('day');
-
+                switch (appLogic.activePeriod) {
+                    case 'week': 
+                        duration = 7; previousDuration = 7;
+                        currentLabel = 'Current Week'; 
+                        previousLabel = 'Previous Week';
+                        break;
+                    case 'month': 
+                        duration = 30; previousDuration = 30; 
+                        currentLabel = 'Last 30 Days';
+                        previousLabel = 'Previous 30 Days';
+                        break;
+                    case 'year': 
+                        duration = 365; previousDuration = 365; 
+                        currentLabel = 'Last Year';
+                        previousLabel = 'Year Before';
+                        break;
+                    case 'all':
+                        const historyDates = Object.keys(appLogic.history).sort();
+                        if (historyDates.length === 0) { 
+                            duration = 1; previousDuration = 0; 
+                        } else {
+                            const firstDay = moment(historyDates[0], 'YYYY-MM-DD').startOf('day');
+                            const totalDays = today.diff(firstDay, 'days') + 1;
+                            duration = Math.ceil(totalDays / 2); previousDuration = Math.floor(totalDays / 2); 
+                        }
+                        currentLabel = 'Second Half (All Time)';
+                        previousLabel = 'First Half (All Time)';
+                        break;
+                    default: 
+                        duration = 7; previousDuration = 7;
+                        currentLabel = 'Current Week'; 
+                        previousLabel = 'Previous Week';
                 }
+
+                currentPeriodStart = moment(end).subtract(duration - 1, 'days').startOf('day');
+                currentPeriodEnd = end;
+                previousPeriodEnd = moment(currentPeriodStart).subtract(1, 'second').startOf('day');
+                previousPeriodStart = moment(previousPeriodEnd).subtract(previousDuration - 1, 'days').startOf('day');
                 
                 return { 
                     duration, 
@@ -1196,6 +1371,13 @@
 
                 const analysisContainer = document.getElementById('chartGrid');
                 analysisContainer.innerHTML = ''; 
+
+                // Destroy existing comparative charts
+                Object.keys(appLogic.charts).forEach(chart => {
+                    if (appLogic.charts[chart]) { appLogic.charts[chart].destroy(); }
+                });
+                appLogic.charts = {};
+
 
                 allChartAreas.forEach(area => {
                     const data = appLogic.dailyGoalData[area] || appLogic.DEFAULT_GOALS[area] || appLogic.customGoalDefinitions[area];
