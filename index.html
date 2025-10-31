@@ -328,7 +328,6 @@
             customGoals: [], // New array to track custom goal IDs
 
             // CONSTANTS - UPDATED FOR EXERCISE TRACKING
-            // TRACKER_AREAS will now only contain the hardcoded goals + 'mindset'
             TRACKER_AREAS: ['pushups', 'crunches', 'squats', 'taekwondo', 'mindset'],
             DEFAULT_GOALS: {
                 pushups: { progress: 0, goal: 50, unit: 'Reps', color: 'green' },
@@ -696,12 +695,9 @@
                         // Use a generic SVG path for custom goals
                         const customSvgPath = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>';
                         
-                        // *** FIX APPLIED HERE ***
-                        // Use a temporary div to correctly parse the HTML string into DOM elements
-                        const tempDiv = document.createElement('div');
-                        tempDiv.innerHTML = appLogic.renderCard(area, data, areaLabel, `border-${data.color}-400`, customSvgPath);
-                        customGoalsGrid.appendChild(tempDiv.firstChild);
-                        // *** END FIX ***
+                        // *** CRITICAL FIX APPLIED HERE ***
+                        // Use insertAdjacentHTML which is often more reliable for immediate DOM population than appendChild(tempDiv.firstChild)
+                        customGoalsGrid.insertAdjacentHTML('beforeend', appLogic.renderCard(area, data, areaLabel, `border-${data.color}-400`, customSvgPath));
                         
                     } else {
                         // Fixed cards already exist in the HTML, so we just update their values
@@ -709,7 +705,8 @@
                         if(goalInput) goalInput.value = goal;
                     }
 
-                    // *** CORE PROGRESS UPDATE LOGIC (Apply to fixed and custom) ***
+                    // *** CORE PROGRESS UPDATE LOGIC (Applies to both fixed and custom) ***
+                    // Ensure elements are sought after insertion
                     const progressPercent = Math.min(100, (progress / goal) * 100);
                     const progressBar = document.getElementById(`${area}ProgressBar`);
                     const progressText = document.getElementById(`${area}ProgressText`);
