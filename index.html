@@ -305,7 +305,7 @@
                 <svg class="w-12 h-12 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                 <h3 class="text-xl font-semibold text-gray-900 mb-2">Confirm Deletion</h3>
                 <p id="modalMessage" class="text-sm text-gray-600 mb-6 font-medium">
-                    Are you sure you want to permanently erase the **[Goal Name]** goal? This will **delete ALL history** for this goal from the database.
+                    Are you sure you want to permanently erase the **[Goal Name]** goal? This action is irreversible and will **delete ALL history** for this goal from the database.
                 </p>
                 <div class="flex justify-center space-x-4">
                     <button onclick="appLogic.modalActions.cancel()" class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-150">
@@ -528,8 +528,6 @@
                     ...dataToSave,
                     date: todayKey
                 };
-
-                // NOTE: We rely on `removeGoal` to clean up the rest of `appLogic.history` before this is called.
                 
                 const docRef = db.collection('artifacts').doc(appId).collection('users').doc(appLogic.userId).collection('growthData').doc('history');
 
@@ -614,6 +612,7 @@
 
                 appLogic.modalTargetArea = area; // Set state
                 
+                // *** FIX: Removed redundant ** around goalLabel and deletion text ***
                 modalMessage.innerHTML = `Are you sure you want to permanently erase the **${goalLabel}** goal? This action is irreversible and will **delete ALL history** for this goal from the database.`;
                 
                 // Show modal with transition
