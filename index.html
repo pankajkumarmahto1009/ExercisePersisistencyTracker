@@ -297,6 +297,28 @@
             </div>
         </div>
     </div>
+    
+    <!-- *** NEW CUSTOM CONFIRMATION MODAL UI *** -->
+    <div id="confirmationModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-[100] flex items-center justify-center transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl p-6 shadow-2xl max-w-sm w-full transform scale-95 transition-transform duration-300">
+            <div class="text-center">
+                <svg class="w-12 h-12 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                <h3 class="text-xl font-semibold text-gray-900 mb-2">Confirm Deletion</h3>
+                <p id="modalMessage" class="text-sm text-gray-600 mb-6 font-medium">
+                    Are you sure you want to permanently erase the **[Goal Name]** goal? This will **delete ALL history** for this goal from the database.
+                </p>
+                <div class="flex justify-center space-x-4">
+                    <button onclick="appLogic.modalActions.cancel()" class="flex-1 px-4 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-150">
+                        Cancel
+                    </button>
+                    <button onclick="appLogic.modalActions.confirm()" id="confirmDeleteBtn" class="flex-1 px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition duration-150 shadow-md">
+                        Erase History
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- *** END MODAL UI *** -->
 
     <script>
         // Global instance variables for Firebase services and tracking state
@@ -326,6 +348,7 @@
             charts: {}, 
             activePeriod: 'week',
             customGoals: [], // New array to track custom goal IDs
+            modalTargetArea: null, // New state to track which goal to delete
 
             // CONSTANTS - UPDATED FOR EXERCISE TRACKING
             TRACKER_AREAS: ['pushups', 'crunches', 'squats', 'taekwondo', 'mindset'],
@@ -512,8 +535,6 @@
 
                 try {
                     // *** FIX: Since appLogic.history now holds the cleaned data (post-removal), we use SET to overwrite it completely, guaranteeing deletion. ***
-                    // IMPORTANT: We cannot use merge if we want to delete fields from the entire map (which is what history is).
-                    // We must update the entire document structure by sending the cleaned local object.
                     await docRef.set({ history: appLogic.history });
                 } catch (e) {
                     appLogic.showStatusMessage(`Save failed: ${e.message}`, 'bg-red-500');
@@ -585,32 +606,71 @@
                 appLogic.showStatusMessage('Daily progress reset! New day, new opportunities!', 'bg-blue-600');
             },
             
-            // *** FIX IMPLEMENTED HERE: Ensure complete local and remote deletion ***
+            // *** MODIFIED to SHOW MODAL instead of direct deletion ***
             removeGoal(area) {
-                
-                // 1. Remove from local customGoals array
-                appLogic.customGoals = appLogic.customGoals.filter(g => g !== area);
-                
-                // 2. Remove from today's data structure
-                if (appLogic.dailyGoalData[area]) {
-                    delete appLogic.dailyGoalData[area];
-                }
-
+                const modal = document.getElementById('confirmationModal');
+                const modalMessage = document.getElementById('modalMessage');
                 const goalLabel = area.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
-                // 3. Remove the key/value from ALL historical records locally
-                Object.keys(appLogic.history).forEach(dateKey => {
-                    if (appLogic.history[dateKey] && appLogic.history[dateKey][area]) {
-                        delete appLogic.history[dateKey][area];
-                    }
-                });
-
-                // 4. Force a full overwrite save to Firebase (using .set)
-                appLogic.saveHistory(); 
+                appLogic.modalTargetArea = area; // Set state
                 
-                // 5. Update UI
-                appLogic.renderUI(); 
-                appLogic.showStatusMessage(`${goalLabel} goal successfully removed! (Permanent)`, 'bg-red-500');
+                modalMessage.innerHTML = `Are you sure you want to permanently erase the **${goalLabel}** goal? This action is irreversible and will **delete ALL history** for this goal from the database.`;
+                
+                // Show modal with transition
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modal.classList.add('opacity-100');
+                    modal.querySelector('.transform').classList.remove('scale-95');
+                    modal.querySelector('.transform').classList.add('scale-100');
+                }, 10);
+            },
+            
+            // *** NEW MODAL ACTIONS OBJECT ***
+            modalActions: {
+                hide() {
+                    const modal = document.getElementById('confirmationModal');
+                    // Hide modal with transition
+                    modal.classList.remove('opacity-100');
+                    modal.querySelector('.transform').classList.remove('scale-100');
+                    modal.querySelector('.transform').classList.add('scale-95');
+                    setTimeout(() => modal.classList.add('hidden'), 300);
+                    appLogic.modalTargetArea = null; // Clear state
+                },
+
+                cancel() {
+                    appLogic.modalActions.hide();
+                },
+
+                confirm() {
+                    const area = appLogic.modalTargetArea;
+                    if (!area) return appLogic.modalActions.hide();
+
+                    appLogic.modalActions.hide();
+                    
+                    // 1. Remove from local customGoals array
+                    appLogic.customGoals = appLogic.customGoals.filter(g => g !== area);
+                    
+                    // 2. Remove from today's data structure
+                    if (appLogic.dailyGoalData[area]) {
+                        delete appLogic.dailyGoalData[area];
+                    }
+
+                    const goalLabel = area.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+                    // 3. Remove the key/value from ALL historical records locally
+                    Object.keys(appLogic.history).forEach(dateKey => {
+                        if (appLogic.history[dateKey] && appLogic.history[dateKey][area]) {
+                            delete appLogic.history[dateKey][area];
+                        }
+                    });
+
+                    // 4. Force a full overwrite save to Firebase (using .set)
+                    appLogic.saveHistory(); 
+                    
+                    // 5. Update UI
+                    appLogic.renderUI(); 
+                    appLogic.showStatusMessage(`${goalLabel} goal successfully removed! (History erased)`, 'bg-red-600');
+                }
             },
 
 
