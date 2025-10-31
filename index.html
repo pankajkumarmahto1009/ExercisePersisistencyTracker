@@ -67,10 +67,10 @@
         }
         /* New style for the chart wrapper to enable internal scrolling */
         .chart-scroll-wrapper {
-            overflow-x: auto;
-            position: relative; /* Needed for chart sizing */
+            /* REVERTED: Removing internal scrolling complexity. Charts will fit their responsive container. */
+            overflow-x: hidden; 
+            position: relative; 
             height: 100%;
-            padding-bottom: 20px; /* Space for scrollbar */
         }
         /* Ensure the canvas fills its content width, allowing overflow */
         .chart-content {
@@ -1011,30 +1011,31 @@
                     // Add analysis-card and h-64/md:h-72 for standard styling and height
                     chartCard.classList.add('analysis-card', 'h-64', 'md:h-72'); 
 
-                    // Create the inner scroll wrapper
+                    // Create the inner scroll wrapper for horizontal scrolling
                     const scrollWrapper = document.createElement('div');
                     scrollWrapper.classList.add('chart-scroll-wrapper');
                     
                     const canvas = document.createElement('canvas');
                     canvas.id = `${area}Chart`;
-                    canvas.classList.add('chart-content');
+                    canvas.classList.add('chart-content'); // Uses width/height 100%
+                    
+                    // --- REVERTED: Dynamic Width Calculation Removed ---
+                    let forcedWidth = '100%';
+                    if (duration > 7) {
+                        // For long periods, calculate a minimum width (20px per point) to force overflow
+                        // This forces the content to be wider than the container, enabling scroll
+                        forcedWidth = `${Math.max(chartCard.clientWidth, duration * 20)}px`;
+                    }
+                    
+                    canvas.style.minWidth = forcedWidth;
+                    // --- END REVERTED ---
+
 
                     scrollWrapper.appendChild(canvas);
                     chartCard.appendChild(scrollWrapper);
                     analysisContainer.appendChild(chartCard); 
                     
-                    // --- NEW LOGIC: Force minimum width for horizontal scrolling on long periods ---
-                    // Only apply a forced width if the period is longer than 7 days (e.g., Month or All Time)
-                    let chartContentWidth = '100%';
-                    if (duration > 7) {
-                        // Calculate width based on number of data points (e.g., 20px per day minimum)
-                        chartContentWidth = `${Math.max(chartCard.clientWidth, duration * 20)}px`;
-                    }
-                    
-                    canvas.style.minWidth = chartContentWidth;
-                    // --- END NEW LOGIC ---
-
-                    appLogic.drawChart(area, labels, currentTrend, previousTrend, chartContentWidth);
+                    appLogic.drawChart(area, labels, currentTrend, previousTrend, forcedWidth);
                 });
             },
 
@@ -1090,7 +1091,7 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        // If we force width, we must set aspectRatio to a value > 1 or false if we need a fluid height
+                        // Set aspectRatio to null if we have forced a specific min-width, allowing height to stay responsive
                         aspectRatio: forcedWidth !== '100%' ? null : 1, 
                         plugins: {
                             legend: { display: false },
