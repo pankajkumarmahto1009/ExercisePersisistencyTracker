@@ -65,6 +65,11 @@
             color: white;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
+        /* Modal specific styling */
+        .modal-content {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
     </style>
 
 </head>
@@ -318,7 +323,44 @@
             </div>
         </div>
     </div>
-    <!-- *** END MODAL UI *** -->
+    <!-- *** END CONFIRMATION MODAL UI *** -->
+
+    <!-- *** NEW GOAL DETAIL MODAL UI (FOR GRAPH CLICK) *** -->
+    <div id="detailModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 z-[100] flex items-center justify-center transition-opacity duration-300 opacity-0">
+        <div class="bg-white rounded-xl p-6 shadow-2xl max-w-4xl w-[95%] sm:w-[90%] md:w-[70%] lg:w-[60%] transform scale-95 transition-transform duration-300 modal-content">
+            <h3 id="detailGoalTitle" class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">Detailed Analysis: Goal Name</h3>
+            
+            <div id="detailGoalKPIs" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 text-center">
+                <!-- KPIs will be injected here -->
+            </div>
+
+            <h4 class="text-lg font-semibold text-gray-700 mb-3">Historical Progress (<span id="detailPeriodRange"></span>)</h4>
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 shadow-md rounded-lg">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Logged (<span id="detailUnitHeader">Unit</span>)</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Goal</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">% Complete</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detailHistoryTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- History rows will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-6 text-right">
+                <button onclick="appLogic.detailModalActions.hide()" class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- *** END GOAL DETAIL MODAL UI *** -->
+
 
     <script>
         // Global instance variables for Firebase services and tracking state
@@ -348,7 +390,8 @@
             charts: {}, 
             activePeriod: 'week',
             customGoals: [], // New array to track custom goal IDs
-            modalTargetArea: null, // New state to track which goal to delete
+            modalTargetArea: null, 
+            activePeriodData: {}, // Store current period raw data for detail modal
 
             // CONSTANTS - UPDATED FOR EXERCISE TRACKING
             TRACKER_AREAS: ['pushups', 'crunches', 'squats', 'taekwondo', 'mindset'],
@@ -612,7 +655,7 @@
 
                 appLogic.modalTargetArea = area; // Set state
                 
-                // *** FIX: Removed redundant ** around goalLabel and deletion text ***
+                // *** FIX: Removed redundant ** around goalLabel and deletion text in modalMessage ***
                 modalMessage.innerHTML = `Are you sure you want to permanently erase the **${goalLabel}** goal? This action is irreversible and will **delete ALL history** for this goal from the database.`;
                 
                 // Show modal with transition
@@ -671,252 +714,115 @@
                     appLogic.showStatusMessage(`${goalLabel} goal successfully removed! (History erased)`, 'bg-red-600');
                 }
             },
-
-
-            // NEW: Function to dynamically generate a tracker card HTML
-            renderCard(area, data, label, cardColor, svgPath) {
-                const colorCode = data.color || 'indigo'; // Fallback to indigo
-                const removeButton = appLogic.customGoals.includes(area) ? 
-                    `<button onclick="appLogic.removeGoal('${area}')" class="text-xs text-red-400 hover:text-red-600 font-medium transition duration-150 mt-2">Remove Goal</button>` : '';
-
-                const cardHtml = `
-                    <div id="${area}Card" class="tracker-card bg-white p-6 border-l-4 border-${colorCode}-400">
-                        <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center justify-between">
-                            <span class="flex items-center">
-                                <svg class="w-5 h-5 mr-2 text-${colorCode}-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${svgPath}</svg>
-                                ${label}
-                            </span>
-                             ${removeButton}
-                        </h3>
-                        <label for="${area}Goal" class="text-sm font-medium text-gray-500">Goal: ${data.unit}</label>
-                        <input type="number" id="${area}Goal" onchange="appLogic.updateGoal('${area}', '${area}Goal')" value="${data.goal}" min="1" class="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:ring-${colorCode}-400 focus:border-${colorCode}-400">
-                        <div class="mt-4">
-                            <p class="text-sm font-medium text-gray-700 mb-1">Daily Progress</p>
-                            <div class="flex items-center space-x-2">
-                                <input type="number" id="${area}Input" placeholder="0" min="0" step="1" class="w-2/3 p-2 border border-gray-300 rounded-lg focus:ring-${colorCode}-400 focus:border-${colorCode}-400">
-                                <button onclick="appLogic.updateTracker('${area}', '${area}Input')" class="w-1/3 bg-${colorCode}-400 hover:bg-${colorCode}-500 text-white font-semibold py-2 rounded-lg transition duration-150">Log</button>
-                            </div>
-                        </div>
-                        <div class="mt-4">
-                            <p class="text-gray-700 text-sm font-medium">Progress: <span id="${area}ProgressText" class="font-bold">0%</span></p>
-                            <div class="w-full bg-gray-200 progress-bar mt-1">
-                                <div id="${area}ProgressBar" class="progress-bar bg-${colorCode}-400" style="width: 0%;"></div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                return cardHtml;
-            },
             
-            addCustomGoal() {
-                const nameInput = document.getElementById('customGoalName');
-                const targetInput = document.getElementById('customGoalTarget');
-                const unitInput = document.getElementById('customGoalUnit');
-
-                const name = nameInput.value.trim();
-                const target = parseFloat(targetInput.value);
-                const unit = unitInput.value;
-
-                if (!name || isNaN(target) || target <= 0) {
-                    appLogic.showStatusMessage('Please enter a valid name and positive goal.', 'bg-red-500');
-                    return;
-                }
-
-                // Create a unique key for the goal (e.g., pullups_reps)
-                const areaKey = name.toLowerCase().replace(/[^a-z0-9]/g, '_'); 
-                
-                if (appLogic.TRACKER_AREAS.includes(areaKey) || appLogic.customGoals.includes(areaKey)) {
-                    appLogic.showStatusMessage(`Goal '${name}' already exists.`, 'bg-yellow-600');
-                    return;
-                }
-
-                const newGoal = {
-                    progress: 0,
-                    goal: target,
-                    unit: unit,
-                    color: 'indigo' // Default color for custom goals
-                };
-                
-                // Add to daily data
-                appLogic.dailyGoalData[areaKey] = newGoal;
-                // Add to custom goals list
-                appLogic.customGoals.push(areaKey);
-
-                // Clear inputs
-                nameInput.value = '';
-                targetInput.value = 30;
-                unitInput.value = 'Reps';
-
-                appLogic.saveHistory();
-                appLogic.showStatusMessage(`Custom Goal '${name}' added!`, 'bg-indigo-600');
-            },
-
-
-            // --- RENDER UI ---
-            renderUI() { 
-                document.getElementById('todayDateDisplay').textContent = moment().format('ddd, MMM D, YYYY');
-                
-                // Clear the custom goals grid and re-render them
-                const customGoalsGrid = document.getElementById('customGoalsGrid');
-                customGoalsGrid.innerHTML = ''; 
-
-                // Combine fixed and custom goals for rendering
-                const allTrackedAreas = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals);
-
-                allTrackedAreas.forEach(area => {
-                    // Skip rendering if the goal was just deleted but the state hasn't fully propagated
-                    if (!appLogic.dailyGoalData[area] && !appLogic.DEFAULT_GOALS[area]) return; 
-
-                    const data = appLogic.dailyGoalData[area] || appLogic.DEFAULT_GOALS[area];
-                    const goal = data.goal || appLogic.DEFAULT_GOALS[area].goal;
-                    const progress = data.progress || 0;
+            // *** NEW DETAIL MODAL ACTIONS OBJECT ***
+            detailModalActions: {
+                show(area, period) {
+                    const modal = document.getElementById('detailModal');
+                    const goalData = appLogic.dailyGoalData[area] || appLogic.DEFAULT_GOALS[area];
+                    const goalLabel = area.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                     
-                    // Logic to handle dynamically created cards for custom goals
-                    if (appLogic.customGoals.includes(area)) {
-                        const areaLabel = area.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); // Convert key to Title Case
+                    // Filter history for the active period
+                    const periodData = appLogic.activePeriodData.currentDataRaw;
+                    const historyBody = document.getElementById('detailHistoryTableBody');
+                    const sortedDates = Object.keys(periodData).sort();
+                    
+                    let totalProgress = 0;
+                    let totalCompletion = 0;
+                    let validDays = 0;
+                    
+                    historyBody.innerHTML = '';
+                    
+                    sortedDates.forEach(dateKey => {
+                        const dayData = appLogic.history[dateKey] || {};
+                        const logData = dayData[area] || { progress: 0, goal: goalData.goal, unit: goalData.unit };
                         
-                        // Use a generic SVG path for custom goals
-                        const customSvgPath = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>';
-                        
-                        // *** CRITICAL FIX APPLIED HERE: Use insertAdjacentHTML for reliable DOM population ***
-                        customGoalsGrid.insertAdjacentHTML('beforeend', appLogic.renderCard(area, data, areaLabel, `border-${data.color}-400`, customSvgPath));
-                        
-                    } else {
-                        // Fixed cards already exist in the HTML, so we just update their values
-                        const goalInput = document.getElementById(`${area}Goal`);
-                        if(goalInput) goalInput.value = goal;
-                    }
-
-                    // *** CORE PROGRESS UPDATE LOGIC (Applies to both fixed and custom) ***
-                    // Ensure elements are sought after insertion
-                    const progressPercent = Math.min(100, (progress / goal) * 100);
-                    const progressBar = document.getElementById(`${area}ProgressBar`);
-                    const progressText = document.getElementById(`${area}ProgressText`);
-                    const card = document.getElementById(`${area}Card`);
-                    const colorCode = data.color || appLogic.DEFAULT_GOALS[area].color;
-
-                    if (progressBar && progressText && card) { // Ensure elements exist for fixed/newly created custom goals
-                        progressBar.style.width = `${progressPercent}%`;
-                        progressText.textContent = `${progress} / ${goal} (${Math.round(progressPercent)}%)`;
-
-                        // Reset all ring/color classes (need to list all possible colors for Tailwind JIT compilation)
-                        card.classList.remove('ring-2', 'ring-offset-2', 'ring-green-400', 'ring-offset-white', 'ring-blue-400', 'ring-purple-400', 'ring-red-400', 'ring-indigo-400');
-                        progressBar.classList.remove('!bg-green-600', '!bg-blue-600', '!bg-purple-600', '!bg-red-600', '!bg-indigo-600');
-
-                        if (progressPercent >= 100) {
-                            card.classList.add('ring-2', 'ring-offset-2', `ring-${colorCode}-400`, 'ring-offset-white');
-                            progressBar.classList.add(`!bg-${colorCode}-600`);
-                        }
-                    }
-                });
-
-                const mindsetBtn = document.getElementById('mindsetStatusBtn');
-                const mindsetFeedback = document.getElementById('mindsetFeedback');
-                const mindsetData = appLogic.dailyGoalData['mindset'];
-                const is100 = mindsetData ? mindsetData.is100 : false;
-
-                if (is100) {
-                    mindsetBtn.textContent = 'COMMITMENT Locked';
-                    mindsetBtn.classList.remove('bg-yellow-400', 'hover:bg-yellow-500');
-                    mindsetBtn.classList.add('bg-green-500', 'hover:bg-green-600');
-                    mindsetFeedback.innerHTML = '<span class="status-badge bg-green-100 text-green-700">Commitment is Locked In!</span>';
-                } else {
-                    mindsetBtn.textContent = 'Affirm Commitment';
-                    mindsetBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
-                    mindsetBtn.classList.add('bg-yellow-400', 'hover:bg-yellow-500');
-                    mindsetFeedback.innerHTML = '<span class="status-badge bg-yellow-100 text-yellow-700">Awaiting Affirmation</span>';
-                }
-
-                appLogic.setAnalysisPeriod(appLogic.activePeriod);
-            },
-            
-            // --- ANALYSIS & CHARTING ---
-            setAnalysisPeriod(period) {
-                appLogic.activePeriod = period;
-                document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('period-active'));
-                const activeBtn = document.getElementById(`${period}Btn`);
-                if (activeBtn) { activeBtn.classList.add('period-active'); }
-                appLogic.renderAnalysis();
-            },
-
-            getAnalysisDuration() { 
-                const today = moment().startOf('day');
-                let duration, previousDuration;
-                switch (appLogic.activePeriod) {
-                    case 'week': duration = 7; previousDuration = 7; break;
-                    case 'month': duration = 30; previousDuration = 30; break;
-                    case 'year': duration = 365; previousDuration = 365; break;
-                    case 'all':
-                        const historyDates = Object.keys(appLogic.history).sort();
-                        if (historyDates.length === 0) { duration = 1; previousDuration = 0; break; }
-                        const firstDay = moment(historyDates[0], 'YYYY-MM-DD');
-                        const totalDays = today.diff(firstDay, 'days') + 1;
-                        duration = Math.ceil(totalDays / 2); previousDuration = Math.floor(totalDays / 2); 
-                        break;
-                    default: duration = 7; previousDuration = 7;
-                }
-                return { duration, previousDuration };
-            },
-            
-            // --- MAPPING 0% TO NULL FOR GAPS ---
-            getDailyPerformance(duration, endDate, startDate) { 
-                const dailyData = {};
-                // Exclude mindset for the score and include custom goals
-                const areaKeys = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
-                const end = endDate || moment().startOf('day');
-                const start = startDate || moment(end).subtract(duration - 1, 'days').startOf('day');
-                
-                const datesInPeriod = [];
-                for (let date = moment(start); date.isSameOrBefore(end); date.add(1, 'days')) {
-                    datesInPeriod.push(date.format('YYYY-MM-DD'));
-                }
-
-                datesInPeriod.forEach(dateKey => {
-                    const data = appLogic.history[dateKey];
-                    const result = {};
-                    areaKeys.forEach(area => {
-                        // Use dailyGoalData for goal value if history is missing it for the day
-                        const currentData = appLogic.dailyGoalData[area] || appLogic.DEFAULT_GOALS[area]; 
-                        const areaData = data && data[area] ? data[area] : currentData;
-                        const progress = areaData.progress || 0;
-                        const goal = areaData.goal || currentData.goal; 
+                        const progress = logData.progress || 0;
+                        const goal = logData.goal || goalData.goal;
                         const completion = Math.min(100, (progress / goal) * 100);
                         
-                        // Map 0% completion to NULL to create a gap in the line chart
-                        result[area] = progress > 0 ? completion : null;
+                        if (progress > 0 || completion > 0) {
+                            totalProgress += progress;
+                            totalCompletion += completion;
+                            validDays++;
+                        }
+                        
+                        const momentDate = moment(dateKey, 'YYYY-MM-DD');
+                        const row = `
+                            <tr class="${progress >= goal ? 'bg-green-50/50' : ''}">
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">${momentDate.format('ddd, MMM D')}</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-700 font-semibold">${progress}</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">${goal}</td>
+                                <td class="px-3 py-2 whitespace-nowrap text-sm font-medium ${completion >= 100 ? 'text-green-600' : 'text-indigo-600'}">${Math.round(completion)}%</td>
+                            </tr>
+                        `;
+                        historyBody.insertAdjacentHTML('beforeend', row);
                     });
-                    dailyData[dateKey] = result;
-                });
-                return dailyData;
+                    
+                    // Calculate KPIs
+                    const averageScore = validDays > 0 ? (totalCompletion / sortedDates.length) : 0;
+                    const daysTracked = sortedDates.length;
+                    const periodRange = appLogic.getAnalysisPeriodRange();
+
+                    // Render KPIs
+                    document.getElementById('detailGoalTitle').textContent = `${goalLabel} Analysis`;
+                    document.getElementById('detailPeriodRange').textContent = periodRange;
+                    
+                    const kpiHtml = `
+                        <div class="p-3 bg-indigo-50 rounded-lg border-b-2 border-indigo-500"><p class="text-xs text-gray-500">Total Logged</p><p class="text-lg font-bold text-indigo-700">${totalProgress} ${goalData.unit}</p></div>
+                        <div class="p-3 bg-green-50 rounded-lg border-b-2 border-green-500"><p class="text-xs text-gray-500">Average %</p><p class="text-lg font-bold text-green-700">${Math.round(averageScore)}%</p></div>
+                        <div class="p-3 bg-yellow-50 rounded-lg border-b-2 border-yellow-500"><p class="text-xs text-gray-500">Days Logged</p><p class="text-lg font-bold text-yellow-700">${validDays} / ${daysTracked}</p></div>
+                        <div class="p-3 bg-blue-50 rounded-lg border-b-2 border-blue-500"><p class="text-xs text-gray-500">Target Goal</p><p class="text-lg font-bold text-blue-700">${goalData.goal} ${goalData.unit}/Day</p></div>
+                    `;
+                    document.getElementById('detailGoalKPIs').innerHTML = kpiHtml;
+                    document.getElementById('detailUnitHeader').textContent = goalData.unit;
+
+
+                    // Show modal with transition
+                    modal.classList.remove('hidden');
+                    setTimeout(() => {
+                        modal.classList.add('opacity-100');
+                        modal.querySelector('.transform').classList.remove('scale-95');
+                        modal.querySelector('.transform').classList.add('scale-100');
+                    }, 10);
+                },
+
+                hide() {
+                    const modal = document.getElementById('detailModal');
+                    modal.classList.remove('opacity-100');
+                    modal.querySelector('.transform').classList.remove('scale-100');
+                    modal.querySelector('.transform').classList.add('scale-95');
+                    setTimeout(() => modal.classList.add('hidden'), 300);
+                }
             },
             
-            calculateAverages(periodData) { 
-                const areaKeys = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
-                const total = areaKeys.reduce((acc, area) => ({ ...acc, [area]: 0 }), {});
-                const days = Object.keys(periodData).length;
+            getAnalysisPeriodRange() {
+                const { duration, previousDuration } = appLogic.getAnalysisDuration();
+                const today = moment().startOf('day');
+                let currentPeriodStart = moment(today).subtract(duration - 1, 'days');
                 
-                let validDaysCount = 0;
+                let startFormat, endFormat;
+                if (appLogic.activePeriod === 'year') {
+                    startFormat = 'MMM YYYY';
+                    endFormat = 'MMM YYYY';
+                } else if (appLogic.activePeriod === 'month') {
+                    startFormat = 'MMM D';
+                    endFormat = 'MMM D';
+                } else {
+                    startFormat = 'D/M';
+                    endFormat = 'D/M';
+                }
+
+                if (appLogic.activePeriod === 'all') {
+                     const historyDates = Object.keys(appLogic.history).sort();
+                     if (historyDates.length === 0) return 'No Data';
+                     const firstDay = moment(historyDates[0], 'YYYY-MM-DD');
+                     return `${firstDay.format('MMM D, YYYY')} - ${today.format('MMM D, YYYY')}`;
+                }
                 
-                Object.values(periodData).forEach(day => {
-                    let areaCount = 0;
-                    areaKeys.forEach(area => {
-                         const completionValue = day[area] === null ? 0 : day[area];
-                         total[area] += completionValue;
-                         areaCount++;
-                    });
-                    if (areaCount > 0) { validDaysCount++; }
-                });
-                
-                const avg = {};
-                areaKeys.forEach(area => {
-                    avg[area] = days > 0 ? (total[area] / days) : 0;
-                });
-                
-                const overallAvg = areaKeys.length > 0 ? (Object.values(avg).reduce((sum, val) => sum + val, 0) / areaKeys.length) : 0;
-                
-                return { avg: avg, overallAvg: overallAvg, days: days };
+                return `${currentPeriodStart.format(startFormat)} - ${today.format(endFormat)}`;
             },
-            
+
             renderAnalysis() { 
                 const { duration, previousDuration } = appLogic.getAnalysisDuration();
                 const today = moment().startOf('day');
@@ -928,6 +834,10 @@
                 const previousDataRaw = appLogic.getDailyPerformance(previousDuration, previousPeriodEnd, previousPeriodStart);
                 const currentAverages = appLogic.calculateAverages(currentDataRaw);
                 const previousAverages = appLogic.calculateAverages(previousDataRaw);
+                
+                // Store data for detail modal
+                appLogic.activePeriodData = { currentDataRaw, previousDataRaw };
+
                 const currentAvgScore = Math.round(currentAverages.overallAvg);
                 const previousAvgScore = Math.round(previousAverages.overallAvg);
                 const diff = currentAvgScore - previousAvgScore;
@@ -942,15 +852,16 @@
                 diffElement.classList.toggle('text-green-600', diff >= 0);
                 diffElement.classList.toggle('text-red-600', diff < 0);
                 
+                // *** FIX: Period Selector Button Labels ***
+                document.getElementById('weekBtn').textContent = `Compare Week (${appLogic.getAnalysisPeriodRange('week')})`;
+                document.getElementById('monthBtn').textContent = `Compare Month`; // Too variable to put range here cleanly
+                document.getElementById('yearBtn').textContent = `Compare Year`;
+                document.getElementById('allBtn').textContent = `Compare All Time`;
+
+
                 const labels = Array.from({ length: currentAverages.days }, (_, i) => {
-                     // Use 'M/D' for week view, 'D' for month/year (clamped down for better visibility)
-                     if (appLogic.activePeriod === 'week' || appLogic.activePeriod === 'all') {
-                        return moment(currentPeriodStart).add(i, 'days').format('M/D');
-                     } else if (appLogic.activePeriod === 'month') {
-                        return moment(currentPeriodStart).add(i, 'days').format('D'); // Day number for monthly view
-                     } else {
-                        return moment(currentPeriodStart).add(i, 'days').format('MMM'); // Month abbreviation for yearly view
-                     }
+                     // Use 'D/M' for clarity in the small chart view
+                     return moment(currentPeriodStart).add(i, 'days').format('D/M');
                 });
                 
                 // Get ALL non-mindset areas (fixed and custom)
@@ -972,10 +883,10 @@
                         return previousDataRaw[prevDateKey] ? previousDataRaw[prevDateKey][area] : null;
                     });
                     
-                    // NEW: Dynamically create the canvas element for the chart
+                    // NEW: Dynamically create the canvas element and attach onclick handler
                     const chartCard = document.createElement('div');
                     chartCard.classList.add('analysis-card', 'h-64', 'md:h-72');
-                    chartCard.innerHTML = `<canvas id="${area}Chart"></canvas>`;
+                    chartCard.innerHTML = `<canvas id="${area}Chart" onclick="appLogic.detailModalActions.show('${area}', '${appLogic.activePeriod}')"></canvas>`;
                     analysisContainer.appendChild(chartCard);
                     
                     appLogic.drawChart(area, labels, currentTrend, previousTrend);
@@ -1046,8 +957,8 @@
                                     minRotation: 0,
                                     maxTicksLimit: appLogic.activePeriod === 'week' ? 4 : (appLogic.activePeriod === 'month' ? 6 : 12),
                                     callback: function(value, index, values) {
-                                        // Only show the label if it's the first, middle (for week), or last point, or if autoSkip hasn't cut it.
-                                        if (appLogic.activePeriod === 'week') {
+                                        // Only show the label if it's the first, middle (for week), or last point.
+                                        if (appLogic.activePeriod === 'week' && values.length > 3) {
                                             const total = values.length;
                                             const start = 0;
                                             const middle = Math.floor(total / 2);
