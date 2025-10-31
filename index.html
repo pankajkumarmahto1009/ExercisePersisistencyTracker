@@ -423,21 +423,40 @@
                         // Step 2: Extract any custom goals saved today or previously
                         appLogic.customGoals = []; // Reset the list
                         
-                        // Identify all unique areas (fixed + custom) from today's data
-                        const allAreas = Object.keys(appLogic.dailyGoalData).filter(area => 
-                            !appLogic.TRACKER_AREAS.includes(area) && area !== 'date'
-                        );
-
-                        // If dailyData has custom goals, check for their presence and add to customGoals array
-                        allAreas.forEach(area => {
-                            if (appLogic.dailyGoalData[area] && appLogic.dailyGoalData[area].unit) {
-                                appLogic.customGoals.push(area);
-                                // Ensure it has a color for charting
-                                if (!appLogic.dailyGoalData[area].color) {
-                                    appLogic.dailyGoalData[area].color = 'indigo'; // Default color for custom goals
+                        // Identify all unique areas (fixed + custom) from ALL history to get persistent goals
+                        const allGoalsInHistory = new Set();
+                        
+                        // Check all days in history to find all unique goal keys
+                        Object.values(appLogic.history).forEach(dayData => {
+                            Object.keys(dayData).forEach(area => {
+                                if (!appLogic.TRACKER_AREAS.includes(area) && area !== 'date') {
+                                    allGoalsInHistory.add(area);
+                                }
+                            });
+                        });
+                        
+                        appLogic.customGoals = Array.from(allGoalsInHistory);
+                        
+                        // Step 3: Ensure current daily data includes the definition of all persistent custom goals
+                        appLogic.customGoals.forEach(area => {
+                            if (!appLogic.dailyGoalData[area] && dailyData[area]) {
+                                // If the goal isn't defined today, but exists in the raw data, use its definition from raw data
+                                appLogic.dailyGoalData[area] = dailyData[area];
+                            } else if (!appLogic.dailyGoalData[area]) {
+                                // If the goal is not in today's data, we must search history for a full definition
+                                const lastDefinition = Object.values(appLogic.history)
+                                    .reverse()
+                                    .find(dayData => dayData[area] && dayData[area].unit);
+                                
+                                if (lastDefinition) {
+                                    appLogic.dailyGoalData[area] = lastDefinition[area];
+                                } else {
+                                    // Fallback if somehow a customGoal key exists but no definition is found
+                                    appLogic.dailyGoalData[area] = { progress: 0, goal: 30, unit: 'Units', color: 'indigo' };
                                 }
                             }
                         });
+
 
                         appLogic.dailyGoalData.date = todayKey; 
 
@@ -481,15 +500,21 @@
                     }
                 });
 
+                // Update the local history object for TODAY's date
                 appLogic.history[todayKey] = {
                     ...dataToSave,
                     date: todayKey
                 };
 
+                // NOTE: We rely on `removeGoal` to clean up the rest of `appLogic.history` before this is called.
+                
                 const docRef = db.collection('artifacts').doc(appId).collection('users').doc(appLogic.userId).collection('growthData').doc('history');
 
                 try {
-                    await docRef.set({ history: appLogic.history }, { merge: true });
+                    // *** FIX: Since appLogic.history now holds the cleaned data (post-removal), we use SET to overwrite it completely, guaranteeing deletion. ***
+                    // IMPORTANT: We cannot use merge if we want to delete fields from the entire map (which is what history is).
+                    // We must update the entire document structure by sending the cleaned local object.
+                    await docRef.set({ history: appLogic.history });
                 } catch (e) {
                     appLogic.showStatusMessage(`Save failed: ${e.message}`, 'bg-red-500');
                 }
@@ -560,29 +585,32 @@
                 appLogic.showStatusMessage('Daily progress reset! New day, new opportunities!', 'bg-blue-600');
             },
             
-            // NEW FUNCTION: Handles the removal of a custom goal
+            // *** FIX IMPLEMENTED HERE: Ensure complete local and remote deletion ***
             removeGoal(area) {
                 
-                // Remove from customGoals array
+                // 1. Remove from local customGoals array
                 appLogic.customGoals = appLogic.customGoals.filter(g => g !== area);
                 
-                // Remove from today's data
+                // 2. Remove from today's data structure
                 if (appLogic.dailyGoalData[area]) {
                     delete appLogic.dailyGoalData[area];
                 }
 
                 const goalLabel = area.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
-                // Iterate through all days in history and remove the area key
+                // 3. Remove the key/value from ALL historical records locally
                 Object.keys(appLogic.history).forEach(dateKey => {
                     if (appLogic.history[dateKey] && appLogic.history[dateKey][area]) {
                         delete appLogic.history[dateKey][area];
                     }
                 });
 
-                appLogic.saveHistory(); // Save the pruned history
-                appLogic.renderUI(); // Re-render to update the UI immediately
-                appLogic.showStatusMessage(`${goalLabel} goal successfully removed! (History erased)`, 'bg-red-500');
+                // 4. Force a full overwrite save to Firebase (using .set)
+                appLogic.saveHistory(); 
+                
+                // 5. Update UI
+                appLogic.renderUI(); 
+                appLogic.showStatusMessage(`${goalLabel} goal successfully removed! (Permanent)`, 'bg-red-500');
             },
 
 
@@ -665,7 +693,7 @@
             },
 
 
-            // --- RENDER UI (FIXED to ensure inputs show for custom goals) ---
+            // --- RENDER UI ---
             renderUI() { 
                 document.getElementById('todayDateDisplay').textContent = moment().format('ddd, MMM D, YYYY');
                 
@@ -771,7 +799,7 @@
                 return { duration, previousDuration };
             },
             
-            // --- FIXED: MAPPING 0% TO NULL FOR GAPS ---
+            // --- MAPPING 0% TO NULL FOR GAPS ---
             getDailyPerformance(duration, endDate, startDate) { 
                 const dailyData = {};
                 // Exclude mindset for the score and include custom goals
@@ -795,8 +823,7 @@
                         const goal = areaData.goal || currentData.goal; 
                         const completion = Math.min(100, (progress / goal) * 100);
                         
-                        // *** FIX: Map 0% completion to NULL to create a gap in the line chart ***
-                        // If progress > 0, show the completion percentage, otherwise if completion is exactly 0, show null.
+                        // Map 0% completion to NULL to create a gap in the line chart
                         result[area] = progress > 0 ? completion : null;
                     });
                     dailyData[dateKey] = result;
@@ -812,12 +839,10 @@
                 let validDaysCount = 0;
                 
                 Object.values(periodData).forEach(day => {
-                    let dayTotal = 0;
                     let areaCount = 0;
                     areaKeys.forEach(area => {
                          const completionValue = day[area] === null ? 0 : day[area];
                          total[area] += completionValue;
-                         dayTotal += completionValue;
                          areaCount++;
                     });
                     if (areaCount > 0) { validDaysCount++; }
@@ -828,7 +853,6 @@
                     avg[area] = days > 0 ? (total[area] / days) : 0;
                 });
                 
-                // Re-calculate overall average to include all areas whether they were logged or not (as 0)
                 const overallAvg = areaKeys.length > 0 ? (Object.values(avg).reduce((sum, val) => sum + val, 0) / areaKeys.length) : 0;
                 
                 return { avg: avg, overallAvg: overallAvg, days: days };
@@ -860,7 +884,7 @@
                 diffElement.classList.toggle('text-red-600', diff < 0);
                 
                 const labels = Array.from({ length: currentAverages.days }, (_, i) => {
-                     // Use 'M/D' for week view, 'MMM' for month/year, or default 'M/D'
+                     // Use 'M/D' for week view, 'D' for month/year (clamped down for better visibility)
                      if (appLogic.activePeriod === 'week' || appLogic.activePeriod === 'all') {
                         return moment(currentPeriodStart).add(i, 'days').format('M/D');
                      } else if (appLogic.activePeriod === 'month') {
@@ -957,15 +981,26 @@
                         scales: {
                             x: { 
                                 grid: { display: false }, 
-                                // *** FIX: Reverting rotation and re-enabling autoskip for clean mobile view ***
                                 ticks: { 
-                                    autoSkip: true, // Let Chart.js decide to skip to avoid clutter
-                                    maxRotation: 0, // No rotation needed if skipping works
+                                    autoSkip: true, 
+                                    maxRotation: 0, 
                                     minRotation: 0,
-                                    // Max ticks limit to ensure at least a few points are shown on a small screen
-                                    maxTicksLimit: 7 
+                                    maxTicksLimit: appLogic.activePeriod === 'week' ? 4 : (appLogic.activePeriod === 'month' ? 6 : 12),
+                                    callback: function(value, index, values) {
+                                        // Only show the label if it's the first, middle (for week), or last point, or if autoSkip hasn't cut it.
+                                        if (appLogic.activePeriod === 'week') {
+                                            const total = values.length;
+                                            const start = 0;
+                                            const middle = Math.floor(total / 2);
+                                            const end = total - 1;
+                                            if (index === start || index === middle || index === end) {
+                                                return value;
+                                            }
+                                            return null;
+                                        }
+                                        return value;
+                                    }
                                 }
-                                // **************************************************************************
                             },
                             y: { 
                                 min: 0, 
