@@ -888,7 +888,19 @@
             
             // --- ANALYSIS & CHARTING ---
             shiftPeriod(direction) {
-                appLogic.dateOffset += direction;
+                // Determine if we are at the earliest boundary and trying to scroll further back
+                const { isAtEarliestBoundary } = appLogic.getAnalysisDuration();
+                
+                if (direction < 0 && isAtEarliestBoundary) {
+                    // Prevent scrolling back if we're already at the start
+                    appLogic.dateOffset = appLogic.dateOffset; // Keep the same offset
+                } else if (direction > 0 && appLogic.dateOffset === 0) {
+                    // Prevent scrolling forward past the current period
+                    appLogic.dateOffset = 0;
+                } else {
+                    appLogic.dateOffset += direction;
+                }
+                
                 appLogic.renderAnalysis();
             },
             
@@ -942,64 +954,82 @@
                 let currentDuration;
                 
                 if (appLogic.activePeriod === 'all') {
-                    // For 'All Time', we always calculate the total range, and offset shifts the comparison line.
-                    start = earliestLogDate;
-                    end = today;
-                    currentDuration = end.diff(start, 'days') + 1;
+                    // For 'All Time', we always calculate the total range, and comparison is fixed to first half/second half.
+                    // No external offset scrolling is allowed, but we use dateOffset for simplicity if history is empty.
                     
-                    const halfDuration = Math.floor(currentDuration / 2);
-                    
-                    // Comparison period is the first half
-                    previousStart = start;
-                    previousEnd = moment(start).add(halfDuration - 1, 'days');
-                    
-                    // Current period is the second half
-                    start = moment(previousEnd).add(1, 'day');
-                    
-                    // Clamp previous start to earliest log if the range is small
-                    if (previousEnd.isBefore(earliestLogDate)) {
-                        previousStart = earliestLogDate;
-                        previousEnd = earliestLogDate;
-                    }
+                    if (sortedHistoryDates.length === 0) {
+                        start = today;
+                        end = today;
+                        currentDuration = 1;
+                    } else {
+                        // Original duration based on history
+                        const fullDuration = today.diff(earliestLogDate, 'days') + 1;
+                        const halfDuration = Math.floor(fullDuration / 2);
+                        
+                        // We do not allow scrolling back in 'all time' view.
+                        appLogic.dateOffset = 0; 
 
+                        // Current period: Second half of history
+                        start = moment(earliestLogDate).add(halfDuration, 'days').startOf('day');
+                        end = today;
+                        currentDuration = end.diff(start, 'days') + 1;
+                        
+                        // Comparison period: First half of history
+                        previousStart = earliestLogDate;
+                        previousEnd = moment(earliestLogDate).add(halfDuration - 1, 'days').endOf('day');
+                    }
+                    
                 } else {
                     // Standard periodic shifting (week, month, year)
                     
-                    // Calculate the theoretical end date based on offset
+                    // 1. Calculate the end date based on offset
                     end = moment(today).subtract(appLogic.dateOffset, timeUnit).endOf('day');
                     start = moment(end).subtract(durationDays - 1, 'days').startOf('day');
                     
-                    // Clamp if the start date goes before the earliest log date
+                    // 2. Clamp if the start date goes before the earliest log date
                     if (start.isBefore(earliestLogDate)) {
-                        // We cannot view this period; reset offset to the earliest viewable period.
-                        // Calculate max scroll offset possible
-                        let maxOffset = 0;
-                        if (timeUnit === 'days') {
-                             maxOffset = today.diff(earliestLogDate, 'days') - durationDays + 1;
+                        // Recalculate max offset safely
+                        const maxDaysBack = today.diff(earliestLogDate, 'days');
+                        
+                        if (maxDaysBack < durationDays) {
+                            // If history is less than one full period, center the view on available data
+                            start = earliestLogDate;
+                            end = moment(earliestLogDate).add(durationDays - 1, 'days').endOf('day');
+                            
+                            // If the end is in the future, bring it back to today
+                            if (end.isAfter(today)) end = today;
+
+                            // Since we centered it, scrolling back should be disabled
+                            appLogic.dateOffset = 1; // Arbitrary non-zero offset to trigger clamping logic on the button
                         } else {
-                             maxOffset = today.diff(earliestLogDate, timeUnit);
+                            // Calculate the effective maximum offset units
+                            const maxOffsetPeriods = Math.floor((today.diff(earliestLogDate, timeUnit) - (durationDays/30)) / (timeUnit === 'months' ? 1 : durationDays));
+                            appLogic.dateOffset = Math.max(0, maxOffsetPeriods);
                         }
                         
-                        // Set offset to the max we can see and recalculate start/end
-                        appLogic.dateOffset = Math.min(appLogic.dateOffset, Math.max(0, maxOffset));
-                        
+                        // Recalculate based on the potentially adjusted offset
                         end = moment(today).subtract(appLogic.dateOffset, timeUnit).endOf('day');
                         start = moment(end).subtract(durationDays - 1, 'days').startOf('day');
-                        
-                        // Recalculate duration in case the range was clipped
                         currentDuration = end.diff(start, 'days') + 1;
                         
+                        if (start.isBefore(earliestLogDate)) {
+                             // If it still goes past, forcibly start at the earliest date
+                             start = earliestLogDate;
+                             currentDuration = end.diff(start, 'days') + 1;
+                        }
+
                     } else {
                         currentDuration = durationDays;
                     }
                     
-                    // Calculate comparison period based on the shifted period
+                    // 3. Calculate comparison period based on the shifted period
                     previousEnd = moment(start).subtract(1, 'day').endOf('day');
                     previousStart = moment(previousEnd).subtract(durationDays - 1, 'days').startOf('day');
                     
                     // If the comparison period is outside history, clamp it too
                     if (previousStart.isBefore(earliestLogDate)) {
                         previousStart = earliestLogDate;
+                        previousEnd = moment(start).subtract(1, 'day');
                     }
                 }
                 
@@ -1010,7 +1040,8 @@
                     end: end, 
                     previousStart: previousStart, 
                     previousEnd: previousEnd,
-                    isAtEarliestBoundary: (appLogic.dateOffset > 0 && start.isSameOrBefore(earliestLogDate, timeUnit))
+                    // Check if the current period's start date is the same as the earliest possible log date
+                    isAtEarliestBoundary: (start.isSameOrBefore(earliestLogDate, timeUnit) || start.isSameOrBefore(earliestLogDate, 'day'))
                 };
             },
             
