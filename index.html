@@ -82,7 +82,7 @@
             box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
         }
         /* Additional styling for the new range report charts to ensure they occupy full width on mobile */
-        #rangeChartGrid {
+        #rangeChartGrid, #comparisonChartGrid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
         }
@@ -293,26 +293,47 @@
                 </button>
             </div>
             
-            <!-- NEW: Custom Date Range Selector (Replaces old month picker) -->
-            <div class="max-w-xl mx-auto mb-8 p-6 bg-gray-50 rounded-xl shadow-inner border border-gray-200">
-                <h3 class="text-lg font-bold text-gray-700 mb-4">View Specific Date Range</h3>
-                <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 items-end">
-                    <div class="flex-1 w-full">
-                        <label for="startDatePicker" class="block text-xs font-medium text-gray-500 mb-1">Start Date</label>
-                        <input type="date" id="startDatePicker" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-400 focus:border-indigo-400">
+            <!-- NEW: Custom Date Range Selector for A/B Comparison -->
+            <div class="max-w-4xl mx-auto mb-8 p-6 bg-gray-50 rounded-xl shadow-inner border border-gray-200">
+                <h3 class="text-lg font-bold text-gray-700 mb-4 text-center">A/B Range Comparison Setup</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    <!-- Range A Selector -->
+                    <div class="bg-white p-4 rounded-lg shadow-sm border-2 border-pink-300">
+                        <h4 class="font-semibold text-pink-600 mb-2">Range A: <span id="rangeALabel" class="font-bold text-sm">Not Set</span></h4>
+                        <div class="flex space-x-2">
+                            <input type="date" id="startDatePickerA" class="w-1/2 p-2 border border-gray-300 rounded-lg text-sm">
+                            <input type="date" id="endDatePickerA" class="w-1/2 p-2 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        <button onclick="appLogic.selectComparisonRange('A')" class="w-full mt-3 bg-pink-500 hover:bg-pink-600 text-white font-semibold py-2 rounded-lg text-sm transition duration-150">
+                            Select Range A
+                        </button>
                     </div>
-                    <div class="flex-1 w-full">
-                        <label for="endDatePicker" class="block text-xs font-medium text-gray-500 mb-1">End Date</label>
-                        <input type="date" id="endDatePicker" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-indigo-400 focus:border-indigo-400">
+
+                    <!-- Range B Selector -->
+                    <div class="bg-white p-4 rounded-lg shadow-sm border-2 border-indigo-300">
+                        <h4 class="font-semibold text-indigo-600 mb-2">Range B: <span id="rangeBLabel" class="font-bold text-sm">Not Set</span></h4>
+                        <div class="flex space-x-2">
+                            <input type="date" id="startDatePickerB" class="w-1/2 p-2 border border-gray-300 rounded-lg text-sm">
+                            <input type="date" id="endDatePickerB" class="w-1/2 p-2 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        <button onclick="appLogic.selectComparisonRange('B')" class="w-full mt-3 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 rounded-lg text-sm transition duration-150">
+                            Select Range B
+                        </button>
                     </div>
-                    <button onclick="appLogic.generateRangeReport()" class="w-full sm:w-auto bg-pink-500 hover:bg-pink-600 text-white font-semibold py-2 px-4 rounded-lg text-sm transition duration-150 shadow-md flex-shrink-0">
-                        Generate Report
-                    </button>
+
                 </div>
+
+                <!-- Comparison Button -->
+                <button id="compareABBtn" onclick="appLogic.startABComparison()" class="w-full mt-6 bg-gray-700 hover:bg-gray-800 text-white font-semibold py-3 rounded-lg transition duration-150 shadow-lg disabled:opacity-50" disabled>
+                    Compare Range A vs Range B
+                </button>
             </div>
+            <!-- --- END A/B SETUP SECTION --- -->
 
             <!-- Main Comparative Analysis Grid (Stays the same) -->
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-10">
+            <div id="comparativeAnalysisContainer" class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-10">
                 <!-- Comparison Card -->
                 <div class="analysis-card border-t-4 border-indigo-500 lg:col-span-1 flex flex-col justify-center items-center text-center">
                     <h3 class="text-lg font-semibold text-gray-700 mb-2">Growth Rate</h3>
@@ -343,16 +364,16 @@
                 </div>
                 
             </div>
-            <!-- --- END COMPARATIVE ANALYSIS SECTION --- -->
+            <!-- --- END STANDARD COMPARATIVE ANALYSIS SECTION --- -->
 
 
-            <!-- NEW: Date Range Report Container -->
-            <div id="rangeReportContainer" class="hidden mt-12 mb-10 pt-8 border-t border-pink-300">
+            <!-- NEW: A/B Comparison Report Container -->
+            <div id="comparisonReportContainer" class="hidden mt-12 mb-10 pt-8 border-t border-gray-400">
                 <h3 class="text-2xl font-bold text-gray-800 text-center mb-6">
-                    Date Range Report: <span id="reportRangeDates" class="text-pink-600 font-extrabold"></span>
+                    A/B Comparison Report
                 </h3>
-                <div id="rangeChartGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <!-- Range Charts will be inserted here by JavaScript -->
+                <div id="comparisonChartGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- A/B Comparison Charts will be inserted here by JavaScript -->
                 </div>
             </div>
 
@@ -444,15 +465,17 @@
             history: {}, 
             dailyGoalData: {}, 
             charts: {}, // Charts for comparative analysis (Week/Month/Year/All)
-            rangeChartData: {}, // NEW: Charts for the specific date range report
+            comparisonCharts: {}, // NEW: Charts for A/B comparison
             activePeriod: 'week', 
             customGoals: [], 
             modalTargetArea: null, 
             activePeriodData: {}, 
             customGoalDefinitions: {}, 
             isGoalFormVisible: false, 
-            isGoalEditModalVisible: false, // NEW STATE
-            activeGoalToDelete: null, // NEW STATE
+            isGoalEditModalVisible: false, 
+            activeGoalToDelete: null, 
+            rangeAData: null, // NEW: Stores selected Range A data
+            rangeBData: null, // NEW: Stores selected Range B data
 
             // CONSTANTS
             TRACKER_AREAS: ['pushups', 'crunches', 'squats', 'taekwondo', 'mindset'],
@@ -462,6 +485,15 @@
                 squats: { progress: 0, goal: 100, unit: 'Reps', color: 'purple' },
                 taekwondo: { progress: 0, goal: 15, unit: 'Min', color: 'red' }, 
                 mindset: { status: 'Untoggled', is100: false, unit: 'Affirmed', color: 'yellow' },
+            },
+
+            // Tailwind Color Map (for chart colors)
+            COLOR_MAP: {
+                green: 'rgba(52, 211, 153, 1)', blue: 'rgba(96, 165, 250, 1)', purple: 'rgba(167, 139, 250, 1)',
+                red: 'rgba(248, 113, 113, 1)', pink: 'rgba(236, 72, 153, 1)', teal: 'rgba(20, 184, 166, 1)',
+                orange: 'rgba(251, 146, 60, 1)', indigo: 'rgba(79, 70, 229, 1)', yellow: 'rgba(251, 191, 36, 1)',
+                // Secondary Colors for Comparison
+                pink_light: 'rgba(236, 72, 153, 0.6)', indigo_light: 'rgba(79, 70, 229, 0.6)' 
             },
             
             // --- UTILITIES & UI HELPERS ---
@@ -975,9 +1007,6 @@
                 // Safely determine color (Tailwind safe list for dynamic generation)
                 const safeColor = data.color && ['green', 'blue', 'purple', 'red', 'indigo', 'yellow', 'pink', 'teal', 'orange'].includes(data.color) ? data.color : 'indigo';
                 
-                // The remove button has been centralized, so we remove the inline button here.
-                const removeButton = ''; // REMOVED: `<button onclick="appLogic.removeGoal('${area}')" class="text-xs text-red-400 hover:text-red-600 font-medium transition duration-150 mt-2">Remove Goal</button>` 
-                
                 // Generic SVG for custom goals
                 const customSvgPath = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>';
 
@@ -988,7 +1017,6 @@
                                 <svg class="w-5 h-5 mr-2 text-${safeColor}-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${customSvgPath}</svg>
                                 ${label}
                             </span>
-                             ${removeButton}
                         </h3>
                         <label for="${area}Goal" class="text-sm font-medium text-gray-500">Goal: ${data.unit}</label>
                         <input type="number" id="${area}Goal" onchange="appLogic.updateGoal('${area}', '${area}Goal')" value="${data.goal || 30}" min="1" class="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:ring-${safeColor}-400 focus:border-${safeColor}-400">
@@ -1165,77 +1193,204 @@
                     document.getElementById('believeCard').classList.add('border-yellow-400');
                 }
                 
-                // Initialize date pickers with today's date for ease of use
+                // Initialize date pickers with default values
                 const todayFormatted = moment().format('YYYY-MM-DD');
-                const startDatePicker = document.getElementById('startDatePicker');
-                const endDatePicker = document.getElementById('endDatePicker');
-                if (startDatePicker) startDatePicker.value = moment().subtract(6, 'days').format('YYYY-MM-DD');
-                if (endDatePicker) endDatePicker.value = todayFormatted;
+                if (document.getElementById('startDatePickerA')) {
+                    document.getElementById('startDatePickerA').value = moment().subtract(14, 'days').format('YYYY-MM-DD');
+                    document.getElementById('endDatePickerA').value = moment().subtract(7, 'days').format('YYYY-MM-DD');
+                    document.getElementById('startDatePickerB').value = moment().subtract(6, 'days').format('YYYY-MM-DD');
+                    document.getElementById('endDatePickerB').value = todayFormatted;
+                }
 
                 appLogic.setAnalysisPeriod(appLogic.activePeriod);
             },
             
-            // --- ANALYSIS & CHARTING ---
+            // --- A/B COMPARISON LOGIC ---
 
-            // NEW FUNCTION: Generate Report for Specific Date Range
-            generateRangeReport() {
-                const startInput = document.getElementById('startDatePicker');
-                const endInput = document.getElementById('endDatePicker');
+            selectComparisonRange(rangeName) {
+                const startInput = document.getElementById(`startDatePicker${rangeName}`);
+                const endInput = document.getElementById(`endDatePicker${rangeName}`);
+                const labelElement = document.getElementById(`range${rangeName}Label`);
+                const compareBtn = document.getElementById('compareABBtn');
                 
                 const startDate = moment(startInput.value, 'YYYY-MM-DD').startOf('day');
                 const endDate = moment(endInput.value, 'YYYY-MM-DD').startOf('day');
 
-                if (!startDate.isValid() || !endDate.isValid()) {
-                    appLogic.showStatusMessage('Please select valid start and end dates.', 'bg-red-500');
+                if (!startDate.isValid() || !endDate.isValid() || startDate.isAfter(endDate)) {
+                    appLogic.showStatusMessage(`Please select valid dates for Range ${rangeName}.`, 'bg-red-500');
                     return;
                 }
 
-                if (startDate.isAfter(endDate)) {
-                    appLogic.showStatusMessage('Start Date cannot be after End Date.', 'bg-red-500');
-                    return;
-                }
-                
-                // Check if the range is too large (e.g., limit to 365 days for chart readability)
                 if (endDate.diff(startDate, 'days') > 365) {
-                    appLogic.showStatusMessage('Please select a date range of 365 days or less for better chart performance.', 'bg-yellow-600');
+                    appLogic.showStatusMessage('Range limit is 365 days for chart performance.', 'bg-yellow-600');
                 }
                 
                 // Get the performance data for the selected range (no comparison needed)
-                const { dailyData, labels, total, days } = appLogic.getRangePerformance(startDate, endDate);
-                
-                // Calculate overall average for the report title
-                const allAreas = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals);
-                let totalCompletion = 0;
-                let validGoalsCount = 0;
+                const { dailyData, labels, total, days, overallAvgText } = appLogic.getRangePerformanceForComparison(startDate, endDate);
 
-                allAreas.forEach(area => {
-                    const avg = days > 0 ? total[area] / days : 0;
-                    if (!isNaN(avg)) {
-                        totalCompletion += avg;
-                        validGoalsCount++;
+                const rangeData = {
+                    startDate: startDate.format('YYYY-MM-DD'),
+                    endDate: endDate.format('YYYY-MM-DD'),
+                    dailyData: dailyData,
+                    labels: labels,
+                    days: days,
+                    average: overallAvgText,
+                    // Format a label for the button
+                    displayLabel: `${startDate.format('MMM D')} - ${endDate.format('MMM D')} (${days} days)`
+                };
+
+                if (rangeName === 'A') {
+                    appLogic.rangeAData = rangeData;
+                } else {
+                    appLogic.rangeBData = rangeData;
+                }
+                
+                labelElement.textContent = rangeData.displayLabel;
+                appLogic.showStatusMessage(`Range ${rangeName} set: ${rangeData.displayLabel}`, `bg-${rangeName === 'A' ? 'pink' : 'indigo'}-500`);
+
+                // Enable the comparison button if both ranges are set
+                if (appLogic.rangeAData && appLogic.rangeBData) {
+                    compareBtn.disabled = false;
+                    compareBtn.classList.remove('bg-gray-700', 'hover:bg-gray-800');
+                    compareBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+                }
+            },
+
+            startABComparison() {
+                if (!appLogic.rangeAData || !appLogic.rangeBData) {
+                    appLogic.showStatusMessage('Please select both Range A and Range B first.', 'bg-red-500');
+                    return;
+                }
+                
+                // Hide standard comparative analysis
+                document.getElementById('comparativeAnalysisContainer').classList.add('hidden');
+
+                // Render the comparison charts
+                appLogic.renderABComparisonCharts();
+                document.getElementById('comparisonReportContainer').classList.remove('hidden');
+
+                appLogic.showStatusMessage('A/B Comparison Report generated!', 'bg-green-600');
+            },
+
+            renderABComparisonCharts() {
+                const container = document.getElementById('comparisonChartGrid');
+                container.innerHTML = '';
+                
+                // Determine all active goals for charts
+                const activeFixedGoals = appLogic.TRACKER_AREAS.filter(area => 
+                    area !== 'mindset' && !(appLogic.customGoalDefinitions[area] && appLogic.customGoalDefinitions[area].deleted)
+                );
+                const allChartAreas = activeFixedGoals.concat(appLogic.customGoals);
+
+                // Destroy existing comparison charts
+                Object.keys(appLogic.comparisonCharts).forEach(chart => {
+                    if (appLogic.comparisonCharts[chart]) { appLogic.comparisonCharts[chart].destroy(); }
+                });
+                appLogic.comparisonCharts = {};
+
+                allChartAreas.forEach(area => {
+                    const goalData = appLogic.dailyGoalData[area] || appLogic.DEFAULT_GOALS[area] || appLogic.customGoalDefinitions[area];
+                    if (!goalData) return;
+
+                    // --- Extract Range A Data ---
+                    const labelsA = appLogic.rangeAData.labels;
+                    const trendA = labelsA.map(label => {
+                        const date = moment(appLogic.rangeAData.startDate).add(labelsA.indexOf(label), 'days').format('YYYY-MM-DD');
+                        return appLogic.rangeAData.dailyData[date] && appLogic.rangeAData.dailyData[date][area] !== undefined ? appLogic.rangeAData.dailyData[date][area] : 0;
+                    });
+                    
+                    // --- Extract Range B Data ---
+                    const labelsB = appLogic.rangeBData.labels;
+                    const trendB = labelsB.map(label => {
+                        const date = moment(appLogic.rangeBData.startDate).add(labelsB.indexOf(label), 'days').format('YYYY-MM-DD');
+                        return appLogic.rangeBData.dailyData[date] && appLogic.rangeBData.dailyData[date][area] !== undefined ? appLogic.rangeBData.dailyData[date][area] : 0;
+                    });
+                    
+                    const chartCard = document.createElement('div');
+                    chartCard.classList.add('analysis-card', 'h-72', 'comparison-report-chart', 'col-span-1'); 
+                    chartCard.innerHTML = `<canvas id="comparisonChart_${area}"></canvas>`; 
+                    container.appendChild(chartCard); 
+                    
+                    appLogic.drawABComparisonChart(area, trendA, labelsA, trendB, labelsB, goalData.color);
+                });
+            },
+
+            drawABComparisonChart(area, trendA, labelsA, trendB, labelsB, colorCode) {
+                const ctx = document.getElementById(`comparisonChart_${area}`);
+                if (!ctx) return;
+                const context = ctx.getContext('2d');
+                
+                const areaName = area.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); 
+                
+                // Combine labels for max width (Chart.js needs one label array)
+                // For comparison, we use the longest array of labels, padding the shorter data with nulls
+                const maxLen = Math.max(labelsA.length, labelsB.length);
+                const finalLabels = Array.from({ length: maxLen }, (_, i) => 
+                     labelsA[i] || labelsB[i] || ''
+                );
+                
+                // Pad shorter array with nulls to match length
+                const paddedTrendA = [...trendA, ...Array(maxLen - trendA.length).fill(null)];
+                const paddedTrendB = [...trendB, ...Array(maxLen - trendB.length).fill(null)];
+
+
+                appLogic.comparisonCharts[area] = new Chart(context, {
+                    type: 'line',
+                    data: {
+                        labels: finalLabels, // Use the longest label array
+                        datasets: [
+                            { 
+                                label: `Range A (${appLogic.rangeAData.displayLabel})`, 
+                                data: paddedTrendA, 
+                                borderColor: appLogic.COLOR_MAP.pink_light, 
+                                backgroundColor: appLogic.COLOR_MAP.pink_light.replace('0.6)', '0.1)'), 
+                                fill: false, 
+                                tension: 0.2, 
+                                pointRadius: 3, 
+                                borderWidth: 3,
+                                spanGaps: true // Allow nulls for padding
+                            },
+                            { 
+                                label: `Range B (${appLogic.rangeBData.displayLabel})`, 
+                                data: paddedTrendB, 
+                                borderColor: appLogic.COLOR_MAP.indigo_light, 
+                                backgroundColor: appLogic.COLOR_MAP.indigo_light.replace('0.6)', '0.1)'), 
+                                fill: false, 
+                                tension: 0.2, 
+                                pointRadius: 3, 
+                                borderWidth: 3,
+                                spanGaps: true
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'top' },
+                            title: { display: true, text: `${areaName} Performance Comparison`, color: '#4B5563', padding: { top: 10, bottom: 5 } }
+                        },
+                        scales: {
+                            x: { 
+                                grid: { display: false }, 
+                                title: { display: true, text: 'Day Index (A vs B)' },
+                                ticks: { autoSkip: true, maxRotation: 45, minRotation: 0 }
+                            },
+                            y: { 
+                                min: 0, 
+                                max: 100, // Important for accurate visual comparison
+                                title: { display: true, text: 'Completion (%)' }
+                            }
+                        }
                     }
                 });
-
-                const overallAvg = validGoalsCount > 0 ? (totalCompletion / validGoalsCount) : 0;
-                const overallAvgText = Math.round(overallAvg) + '% Avg. Completion';
-
-
-                // Update the UI title
-                const rangeDisplay = document.getElementById('reportRangeDates');
-                rangeDisplay.textContent = `${startDate.format('MMM D, YYYY')} to ${endDate.format('MMM D, YYYY')} (${overallAvgText})`;
-
-                // Render the charts in the dedicated container
-                appLogic.renderRangeReportCharts(dailyData, labels, startDate);
-                document.getElementById('rangeReportContainer').classList.remove('hidden');
-                
-                appLogic.showStatusMessage('Date Range Report generated successfully!', 'bg-pink-600');
             },
             
-            // Function to fetch and process data for a single, non-comparative range
-            getRangePerformance(startDate, endDate) {
+            // --- STANDARD COMPARATIVE ANALYSIS LOGIC (UNCHANGED) ---
+
+            // Specialized version of getRangePerformance for the dual-axis comparison view
+            getRangePerformanceForComparison(startDate, endDate) {
                 const dailyData = {};
                 
-                // Determine all active goals
                 const activeFixedGoals = appLogic.TRACKER_AREAS.filter(area => 
                     area === 'mindset' || // always include mindset
                     !(appLogic.customGoalDefinitions[area] && appLogic.customGoalDefinitions[area].deleted)
@@ -1246,20 +1401,21 @@
                 
                 const labels = [];
                 let daysInPeriod = 0;
+                let overallTotalCompletion = 0;
 
-                // Loop through dates from start to end (inclusive)
                 for (let date = moment(startDate); date.isSameOrBefore(endDate); date.add(1, 'days')) {
                     const dateKey = date.format('YYYY-MM-DD');
                     labels.push(date.format('MM/DD'));
                     
                     const data = appLogic.history[dateKey];
                     const result = {};
-                    
+                    let dailyCompletionSum = 0;
+                    let goalsTracked = 0;
+
                     areaKeys.forEach(area => {
                         const definition = appLogic.dailyGoalData[area] || appLogic.DEFAULT_GOALS[area] || appLogic.customGoalDefinitions[area];
                         if (!definition) return;
                         
-                        // Use the historical data if available, otherwise assume 0 progress
                         const areaData = data && data[area] ? data[area] : { progress: 0, goal: definition.goal, unit: definition.unit };
                         
                         const progress = areaData.progress || 0;
@@ -1269,117 +1425,31 @@
                         
                         result[area] = completion;
                         totalCompletionByArea[area] += completion;
+                        dailyCompletionSum += completion;
+                        goalsTracked++;
                     });
+                    
+                    if (goalsTracked > 0) {
+                        overallTotalCompletion += (dailyCompletionSum / goalsTracked);
+                    }
+                    
                     dailyData[dateKey] = result;
                     daysInPeriod++;
                 }
+                
+                const overallAvg = daysInPeriod > 0 ? (overallTotalCompletion / daysInPeriod) : 0;
+                const overallAvgText = Math.round(overallAvg) + '% Avg. Completion';
+
 
                 return { 
                     dailyData: dailyData, 
                     labels: labels, 
                     total: totalCompletionByArea,
-                    days: daysInPeriod
+                    days: daysInPeriod,
+                    overallAvgText: overallAvgText
                 };
             },
 
-            // Function to render charts in the dedicated range report container
-            renderRangeReportCharts(dailyData, labels, startDate) { 
-                const activeFixedGoals = appLogic.TRACKER_AREAS.filter(area => 
-                    area === 'mindset' || // always include mindset
-                    !(appLogic.customGoalDefinitions[area] && appLogic.customGoalDefinitions[area].deleted)
-                );
-                const allChartAreas = activeFixedGoals.filter(a => a !== 'mindset').concat(appLogic.customGoals); 
-
-                const analysisContainer = document.getElementById('rangeChartGrid');
-                analysisContainer.innerHTML = ''; 
-
-                // Destroy existing charts in the range container
-                Object.keys(appLogic.rangeChartData).forEach(chart => {
-                    if (appLogic.rangeChartData[chart]) { appLogic.rangeChartData[chart].destroy(); }
-                });
-                appLogic.rangeChartData = {};
-
-                allChartAreas.forEach(area => {
-                    const data = appLogic.dailyGoalData[area] || appLogic.DEFAULT_GOALS[area] || appLogic.customGoalDefinitions[area];
-                    if (!data) return; 
-
-                    // Extract trend data for the specific range
-                    const currentTrend = labels.map((label, i) => {
-                         // Find the date key corresponding to the label
-                         const date = moment(startDate).add(i, 'days').format('YYYY-MM-DD');
-                         return dailyData[date] && dailyData[date][area] !== undefined ? dailyData[date][area] : 0; 
-                    });
-                    
-                    const chartCard = document.createElement('div');
-                    // Add h-64 for height on mobile and ensure full width
-                    chartCard.classList.add('analysis-card', 'h-64', 'lg:h-72', 'range-report-chart'); 
-                    chartCard.innerHTML = `<canvas id="rangeChart_${area}"></canvas>`; 
-                    analysisContainer.appendChild(chartCard); 
-                    
-                    appLogic.drawRangeChart(area, labels, currentTrend, data.color);
-                });
-            },
-
-            // Drawing function for the specific date range report
-            drawRangeChart(area, labels, trend, colorCode) { 
-                const ctx = document.getElementById(`rangeChart_${area}`);
-                if (!ctx) return;
-                const context = ctx.getContext('2d');
-
-                const areaName = area.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); 
-                const colorMap = {
-                    green: 'rgba(52, 211, 153, 1)', blue: 'rgba(96, 165, 250, 1)', purple: 'rgba(167, 139, 250, 1)',
-                    red: 'rgba(248, 113, 113, 1)', pink: 'rgba(236, 72, 153, 1)', teal: 'rgba(20, 184, 166, 1)',
-                    orange: 'rgba(251, 146, 60, 1)', indigo: 'rgba(79, 70, 229, 1)', yellow: 'rgba(251, 191, 36, 1)'
-                };
-                
-                // === CHANGE: Use the goal's color instead of hardcoding pink ===
-                const color = colorMap[colorCode] || colorMap['indigo']; 
-                // =============================================================
-                
-                const label = `${areaName} Trend`;
-
-                appLogic.rangeChartData[area] = new Chart(context, {
-                    type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [
-                            { 
-                                label: 'Completion (%)', 
-                                data: trend, 
-                                borderColor: color, 
-                                backgroundColor: color.replace('1)', '0.1)'), 
-                                fill: true, 
-                                tension: 0.4, 
-                                pointRadius: 3, 
-                                borderWidth: 3,
-                                spanGaps: false 
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true, maintainAspectRatio: false,
-                        plugins: {
-                            legend: { display: false },
-                            title: { display: true, text: label, color: '#4B5563', padding: { top: 10, bottom: 5 } }
-                        },
-                        scales: {
-                            x: { 
-                                grid: { display: false }, 
-                                ticks: { autoSkip: true, maxRotation: 0, minRotation: 0 }
-                            },
-                            y: { 
-                                min: 0, 
-                                max: 100, 
-                                title: { display: true, text: 'Completion (%)' },
-                                suggestedMin: 0
-                            }
-                        }
-                    }
-                });
-            },
-
-            // Comparative Analysis functions below (largely unchanged, but 'custom' case removed)
 
             setAnalysisPeriod(period) {
                 appLogic.activePeriod = period;
@@ -1391,8 +1461,11 @@
                 const activeBtn = document.getElementById(`${period}Btn`);
                 if (activeBtn) { activeBtn.classList.add('period-active'); }
 
-                // Hide the custom range report when viewing comparative analysis
-                document.getElementById('rangeReportContainer').classList.add('hidden');
+                // Hide A/B comparison report
+                document.getElementById('comparisonReportContainer').classList.add('hidden');
+                
+                // Show standard comparative analysis
+                document.getElementById('comparativeAnalysisContainer').classList.remove('hidden');
 
                 appLogic.renderAnalysis();
             },
