@@ -392,6 +392,9 @@
             customGoals: [], // New array to track custom goal IDs
             modalTargetArea: null, 
             activePeriodData: {}, // Store current period raw data for detail modal
+            
+            // New state to store custom goal definitions separately for fast access
+            customGoalDefinitions: {}, 
 
             // CONSTANTS - UPDATED FOR EXERCISE TRACKING
             TRACKER_AREAS: ['pushups', 'crunches', 'squats', 'taekwondo', 'mindset'],
@@ -466,75 +469,101 @@
                 }
             },
 
-            // --- FIREBASE DATA SYNC ---
+            // --- FIREBASE DATA SYNC (SPLIT LOADING FOR PERFORMANCE) ---
             async setupDataListener() {
                 if (!appLogic.userId) return;
 
-                const docRef = db.collection('artifacts').doc(appId).collection('users').doc(appLogic.userId).collection('growthData').doc('history');
+                const historyRef = db.collection('artifacts').doc(appId).collection('users').doc(appLogic.userId).collection('growthData').doc('history');
+                // NEW: Reference to a small document just for custom goal definitions
+                const definitionsRef = db.collection('artifacts').doc(appId).collection('users').doc(appLogic.userId).collection('customGoals').doc('definitions');
 
                 appLogic.setLoading(true);
+                
+                // Track when both listeners have fired their first snapshot
+                let historyLoaded = false;
+                let definitionsLoaded = false;
 
-                try {
-                    docRef.onSnapshot(docSnapshot => {
-                        const data = docSnapshot.data() || {};
-                        
-                        appLogic.history = data.history || {};
-                        
+                const checkComplete = () => {
+                    if (historyLoaded && definitionsLoaded) {
                         const todayKey = appLogic.getTodayDateKey();
                         let dailyData = appLogic.history[todayKey] || {};
 
-                        // Step 1: Initialize today's data with defaults
+                        // 1. Initialize today's data with fixed defaults
                         appLogic.dailyGoalData = Object.assign({}, appLogic.DEFAULT_GOALS, dailyData);
                         
-                        // Step 2: Extract any custom goals saved today or previously
-                        appLogic.customGoals = []; // Reset the list
+                        // 2. Load custom goals from the small definitions document
+                        appLogic.customGoals = Object.keys(appLogic.customGoalDefinitions);
                         
-                        // Identify all unique areas (fixed + custom) from ALL history to get persistent goals
-                        const allGoalsInHistory = new Set();
-                        
-                        // Check all days in history to find all unique goal keys
-                        Object.values(appLogic.history).forEach(dayData => {
-                            Object.keys(dayData).forEach(area => {
-                                if (!appLogic.TRACKER_AREAS.includes(area) && area !== 'date') {
-                                    allGoalsInHistory.add(area);
-                                }
-                            });
-                        });
-                        
-                        appLogic.customGoals = Array.from(allGoalsInHistory);
-                        
-                        // Step 3: Ensure current daily data includes the definition of all persistent custom goals
+                        // 3. Merge custom definitions into dailyGoalData for today's goals
                         appLogic.customGoals.forEach(area => {
-                            if (!appLogic.dailyGoalData[area] && dailyData[area]) {
-                                // If the goal isn't defined today, but exists in the raw data, use its definition from raw data
-                                appLogic.dailyGoalData[area] = dailyData[area];
-                            } else if (!appLogic.dailyGoalData[area]) {
-                                // If the goal is not in today's data, we must search history for a full definition
-                                const lastDefinition = Object.values(appLogic.history)
-                                    .reverse()
-                                    .find(dayData => dayData[area] && dayData[area].unit);
-                                
-                                if (lastDefinition) {
-                                    appLogic.dailyGoalData[area] = lastDefinition[area];
-                                } else {
-                                    // Fallback if somehow a customGoal key exists but no definition is found
-                                    appLogic.dailyGoalData[area] = { progress: 0, goal: 30, unit: 'Units', color: 'indigo' };
-                                }
+                            if (appLogic.dailyGoalData[area]) {
+                                // Keep today's progress but update goal/unit/color if changed via UI
+                                appLogic.dailyGoalData[area].goal = appLogic.customGoalDefinitions[area].goal || appLogic.dailyGoalData[area].goal;
+                                appLogic.dailyGoalData[area].unit = appLogic.customGoalDefinitions[area].unit || appLogic.dailyGoalData[area].unit;
+                                appLogic.dailyGoalData[area].color = appLogic.customGoalDefinitions[area].color || appLogic.dailyGoalData[area].color;
+                            } else {
+                                // Fresh definition if no progress was made today
+                                appLogic.dailyGoalData[area] = Object.assign({ progress: 0 }, appLogic.customGoalDefinitions[area]);
                             }
                         });
 
-
                         appLogic.dailyGoalData.date = todayKey; 
-
                         appLogic.renderUI();
                         appLogic.setLoading(false);
+                    }
+                };
+
+                try {
+                    // Listener for large History data (can be slow)
+                    historyRef.onSnapshot(docSnapshot => {
+                        const data = docSnapshot.data() || {};
+                        appLogic.history = data.history || {};
+                        historyLoaded = true;
+                        checkComplete();
                     }, error => {
-                        appLogic.showStatusMessage(`Database Error: ${error.message}`, 'bg-red-500');
-                        appLogic.setLoading(false);
+                        appLogic.showStatusMessage(`History DB Error: ${error.message}`, 'bg-red-500');
+                        historyLoaded = true;
+                        checkComplete();
                     });
+
+                    // NEW: Listener for small Definitions data (should be fast)
+                    definitionsRef.onSnapshot(docSnapshot => {
+                        appLogic.customGoalDefinitions = docSnapshot.data() || {};
+                        definitionsLoaded = true;
+                        checkComplete();
+                    }, error => {
+                        appLogic.showStatusMessage(`Definitions DB Error: ${error.message}`, 'bg-red-500');
+                        definitionsLoaded = true;
+                        checkComplete();
+                    });
+
                 } catch (e) {
-                    appLogic.showStatusMessage('Failed to set up data listener.', 'bg-red-500');
+                    appLogic.showStatusMessage('Failed to set up data listeners.', 'bg-red-500');
                     appLogic.setLoading(false);
+                }
+            },
+            
+            // NEW: Function to save only the small Custom Goal Definitions document
+            async saveCustomGoalDefinitions() {
+                if (!appLogic.userId) return;
+                const definitionsRef = db.collection('artifacts').doc(appId).collection('users').doc(appLogic.userId).collection('customGoals').doc('definitions');
+                
+                // Create a clean object to save only the definitions
+                const definitionsToSave = {};
+                appLogic.customGoals.forEach(area => {
+                    if (appLogic.dailyGoalData[area]) {
+                        definitionsToSave[area] = {
+                            goal: appLogic.dailyGoalData[area].goal,
+                            unit: appLogic.dailyGoalData[area].unit,
+                            color: appLogic.dailyGoalData[area].color || 'indigo'
+                        };
+                    }
+                });
+
+                try {
+                    await definitionsRef.set(definitionsToSave);
+                } catch (e) {
+                    appLogic.showStatusMessage(`Definition save failed: ${e.message}`, 'bg-red-500');
                 }
             },
 
@@ -575,10 +604,10 @@
                 const docRef = db.collection('artifacts').doc(appId).collection('users').doc(appLogic.userId).collection('growthData').doc('history');
 
                 try {
-                    // *** FIX: Since appLogic.history now holds the cleaned data (post-removal), we use SET to overwrite it completely, guaranteeing deletion. ***
+                    // Force a full overwrite save to Firebase (using .set)
                     await docRef.set({ history: appLogic.history });
                 } catch (e) {
-                    appLogic.showStatusMessage(`Save failed: ${e.message}`, 'bg-red-500');
+                    appLogic.showStatusMessage(`History save failed: ${e.message}`, 'bg-red-500');
                 }
             },
 
@@ -592,6 +621,12 @@
                     input.value = goal;
                 }
                 appLogic.dailyGoalData[area].goal = goal;
+                
+                // If it's a custom goal, update the definitions document too
+                if (appLogic.customGoals.includes(area)) {
+                    appLogic.saveCustomGoalDefinitions();
+                }
+
                 appLogic.saveHistory();
                 appLogic.showStatusMessage(`Goal for ${area} updated to ${goal} ${appLogic.dailyGoalData[area].unit}.`, 'bg-blue-500');
             },
@@ -609,7 +644,8 @@
                 appLogic.saveHistory();
                 appLogic.showStatusMessage(`Logged ${value} ${appLogic.dailyGoalData[area].unit} for ${area}!`, 'bg-green-500');
             },
-
+            
+            // ... (omitted toggleMindsetStatus and resetDailyProgress for brevity, no change needed)
             toggleMindsetStatus() { 
                 const area = 'mindset';
                 appLogic.dailyGoalData[area].is100 = !appLogic.dailyGoalData[area].is100;
@@ -647,7 +683,6 @@
                 appLogic.showStatusMessage('Daily progress reset! New day, new opportunities!', 'bg-blue-600');
             },
             
-            // *** MODIFIED to SHOW MODAL instead of direct deletion ***
             removeGoal(area) {
                 const modal = document.getElementById('confirmationModal');
                 const modalMessage = document.getElementById('modalMessage');
@@ -655,7 +690,6 @@
 
                 appLogic.modalTargetArea = area; // Set state
                 
-                // *** FIX: Removed redundant ** around goalLabel and deletion text in modalMessage ***
                 modalMessage.innerHTML = `Are you sure you want to permanently erase the **${goalLabel}** goal? This action is irreversible and will **delete ALL history** for this goal from the database.`;
                 
                 // Show modal with transition
@@ -667,7 +701,6 @@
                 }, 10);
             },
             
-            // *** NEW MODAL ACTIONS OBJECT ***
             modalActions: {
                 hide() {
                     const modal = document.getElementById('confirmationModal');
@@ -696,26 +729,195 @@
                     if (appLogic.dailyGoalData[area]) {
                         delete appLogic.dailyGoalData[area];
                     }
+                    
+                    // 3. Remove from custom definitions store
+                    if (appLogic.customGoalDefinitions[area]) {
+                         delete appLogic.customGoalDefinitions[area];
+                         appLogic.saveCustomGoalDefinitions(); // Save the removal instantly
+                    }
+
 
                     const goalLabel = area.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
-                    // 3. Remove the key/value from ALL historical records locally
+                    // 4. Remove the key/value from ALL historical records locally
                     Object.keys(appLogic.history).forEach(dateKey => {
                         if (appLogic.history[dateKey] && appLogic.history[dateKey][area]) {
                             delete appLogic.history[dateKey][area];
                         }
                     });
 
-                    // 4. Force a full overwrite save to Firebase (using .set)
+                    // 5. Force a full overwrite save of history to Firebase 
                     appLogic.saveHistory(); 
                     
-                    // 5. Update UI
+                    // 6. Update UI
                     appLogic.renderUI(); 
                     appLogic.showStatusMessage(`${goalLabel} goal successfully removed! (History erased)`, 'bg-red-600');
                 }
             },
             
-            // *** NEW DETAIL MODAL ACTIONS OBJECT ***
+            // ... (omitted renderCard and addCustomGoal logic, modified to call saveCustomGoalDefinitions)
+            renderCard(area, data, label, cardColor, svgPath) {
+                const colorCode = data.color || 'indigo'; // Fallback to indigo
+                const removeButton = appLogic.customGoals.includes(area) ? 
+                    `<button onclick="appLogic.removeGoal('${area}')" class="text-xs text-red-400 hover:text-red-600 font-medium transition duration-150 mt-2">Remove Goal</button>` : '';
+
+                const cardHtml = `
+                    <div id="${area}Card" class="tracker-card bg-white p-6 border-l-4 border-${colorCode}-400">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center justify-between">
+                            <span class="flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-${colorCode}-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">${svgPath}</svg>
+                                ${label}
+                            </span>
+                             ${removeButton}
+                        </h3>
+                        <label for="${area}Goal" class="text-sm font-medium text-gray-500">Goal: ${data.unit}</label>
+                        <input type="number" id="${area}Goal" onchange="appLogic.updateGoal('${area}', '${area}Goal')" value="${data.goal}" min="1" class="w-full mt-1 p-2 border border-gray-300 rounded-lg focus:ring-${colorCode}-400 focus:border-${colorCode}-400">
+                        <div class="mt-4">
+                            <p class="text-sm font-medium text-gray-700 mb-1">Daily Progress</p>
+                            <div class="flex items-center space-x-2">
+                                <input type="number" id="${area}Input" placeholder="0" min="0" step="1" class="w-2/3 p-2 border border-gray-300 rounded-lg focus:ring-${colorCode}-400 focus:border-${colorCode}-400">
+                                <button onclick="appLogic.updateTracker('${area}', '${area}Input')" class="w-1/3 bg-${colorCode}-400 hover:bg-${colorCode}-500 text-white font-semibold py-2 rounded-lg transition duration-150">Log</button>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <p class="text-gray-700 text-sm font-medium">Progress: <span id="${area}ProgressText" class="font-bold">0%</span></p>
+                            <div class="w-full bg-gray-200 progress-bar mt-1">
+                                <div id="${area}ProgressBar" class="progress-bar bg-${colorCode}-400" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                return cardHtml;
+            },
+            
+            addCustomGoal() {
+                const nameInput = document.getElementById('customGoalName');
+                const targetInput = document.getElementById('customGoalTarget');
+                const unitInput = document.getElementById('customGoalUnit');
+
+                const name = nameInput.value.trim();
+                const target = parseFloat(targetInput.value);
+                const unit = unitInput.value;
+
+                if (!name || isNaN(target) || target <= 0) {
+                    appLogic.showStatusMessage('Please enter a valid name and positive goal.', 'bg-red-500');
+                    return;
+                }
+
+                // Create a unique key for the goal (e.g., pullups_reps)
+                const areaKey = name.toLowerCase().replace(/[^a-z0-9]/g, '_'); 
+                
+                if (appLogic.TRACKER_AREAS.includes(areaKey) || appLogic.customGoals.includes(areaKey)) {
+                    appLogic.showStatusMessage(`Goal '${name}' already exists.`, 'bg-yellow-600');
+                    return;
+                }
+
+                const newGoalDefinition = {
+                    goal: target,
+                    unit: unit,
+                    color: 'indigo' 
+                };
+                
+                // Add to local custom goal definitions
+                appLogic.customGoalDefinitions[areaKey] = newGoalDefinition;
+                
+                // Update today's data with the new goal + 0 progress
+                appLogic.dailyGoalData[areaKey] = Object.assign({ progress: 0 }, newGoalDefinition);
+                
+                // Add to custom goals list
+                appLogic.customGoals.push(areaKey);
+
+                // Clear inputs
+                nameInput.value = '';
+                targetInput.value = 30;
+                unitInput.value = 'Reps';
+                
+                // Save both definitions and history
+                appLogic.saveCustomGoalDefinitions();
+                appLogic.saveHistory();
+
+                appLogic.showStatusMessage(`Custom Goal '${name}' added!`, 'bg-indigo-600');
+            },
+
+
+            // ... (omitted renderUI, getAnalysisPeriodRange, renderAnalysis, drawChart)
+            renderUI() { 
+                document.getElementById('todayDateDisplay').textContent = moment().format('ddd, MMM D, YYYY');
+                
+                // Clear the custom goals grid and re-render them
+                const customGoalsGrid = document.getElementById('customGoalsGrid');
+                customGoalsGrid.innerHTML = ''; 
+
+                // Combine fixed and custom goals for rendering
+                const allTrackedAreas = appLogic.TRACKER_AREAS.filter(a => a !== 'mindset').concat(appLogic.customGoals);
+
+                allTrackedAreas.forEach(area => {
+                    // Skip rendering if the goal was just deleted but the state hasn't fully propagated
+                    if (!appLogic.dailyGoalData[area] && !appLogic.DEFAULT_GOALS[area]) return; 
+
+                    const data = appLogic.dailyGoalData[area] || appLogic.DEFAULT_GOALS[area];
+                    const goal = data.goal || appLogic.DEFAULT_GOALS[area].goal;
+                    const progress = data.progress || 0;
+                    
+                    // Logic to handle dynamically created cards for custom goals
+                    if (appLogic.customGoals.includes(area)) {
+                        const areaLabel = area.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); // Convert key to Title Case
+                        
+                        // Use a generic SVG path for custom goals
+                        const customSvgPath = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>';
+                        
+                        // *** CRITICAL FIX APPLIED HERE: Use insertAdjacentHTML for reliable DOM population ***
+                        customGoalsGrid.insertAdjacentHTML('beforeend', appLogic.renderCard(area, data, areaLabel, `border-${data.color}-400`, customSvgPath));
+                        
+                    } else {
+                        // Fixed cards already exist in the HTML, so we just update their values
+                        const goalInput = document.getElementById(`${area}Goal`);
+                        if(goalInput) goalInput.value = goal;
+                    }
+
+                    // *** CORE PROGRESS UPDATE LOGIC (Applies to both fixed and custom) ***
+                    // Ensure elements are sought after insertion
+                    const progressPercent = Math.min(100, (progress / goal) * 100);
+                    const progressBar = document.getElementById(`${area}ProgressBar`);
+                    const progressText = document.getElementById(`${area}ProgressText`);
+                    const card = document.getElementById(`${area}Card`);
+                    const colorCode = data.color || appLogic.DEFAULT_GOALS[area].color;
+
+                    if (progressBar && progressText && card) { // Ensure elements exist for fixed/newly created custom goals
+                        progressBar.style.width = `${progressPercent}%`;
+                        progressText.textContent = `${progress} / ${goal} (${Math.round(progressPercent)}%)`;
+
+                        // Reset all ring/color classes (need to list all possible colors for Tailwind JIT compilation)
+                        card.classList.remove('ring-2', 'ring-offset-2', 'ring-green-400', 'ring-offset-white', 'ring-blue-400', 'ring-purple-400', 'ring-red-400', 'ring-indigo-400');
+                        progressBar.classList.remove('!bg-green-600', '!bg-blue-600', '!bg-purple-600', '!bg-red-600', '!bg-indigo-600');
+
+                        if (progressPercent >= 100) {
+                            card.classList.add('ring-2', 'ring-offset-2', `ring-${colorCode}-400`, 'ring-offset-white');
+                            progressBar.classList.add(`!bg-${colorCode}-600`);
+                        }
+                    }
+                });
+
+                const mindsetBtn = document.getElementById('mindsetStatusBtn');
+                const mindsetFeedback = document.getElementById('mindsetFeedback');
+                const mindsetData = appLogic.dailyGoalData['mindset'];
+                const is100 = mindsetData ? mindsetData.is100 : false;
+
+                if (is100) {
+                    mindsetBtn.textContent = 'COMMITMENT Locked';
+                    mindsetBtn.classList.remove('bg-yellow-400', 'hover:bg-yellow-500');
+                    mindsetBtn.classList.add('bg-green-500', 'hover:bg-green-600');
+                    mindsetFeedback.innerHTML = '<span class="status-badge bg-green-100 text-green-700">Commitment is Locked In!</span>';
+                } else {
+                    mindsetBtn.textContent = 'Affirm Commitment';
+                    mindsetBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
+                    mindsetBtn.classList.add('bg-yellow-400', 'hover:bg-yellow-500');
+                    mindsetFeedback.innerHTML = '<span class="status-badge bg-yellow-100 text-yellow-700">Awaiting Affirmation</span>';
+                }
+
+                appLogic.setAnalysisPeriod(appLogic.activePeriod);
+            },
+            
             detailModalActions: {
                 show(area, period) {
                     const modal = document.getElementById('detailModal');
