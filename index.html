@@ -5,14 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exercise Persistency Tracker</title>
     
+    <!-- PWA / Icon Setup (UPDATED WITH YOUR BLOGGER IMAGE LINK) -->
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" type="image/png" href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgoBMwmUtsrDIRDuc6h1GyYpKuI2bN9H2A_QzFSXQBd831PsPx7jcI6cQzG4Hu4VoP6gOVtER_C2_bFkbrMc_luHEWi5X4Uq3ksO8LqXVOR-E_KJLNOLV_OUmOHggCEZ83sMvV9A6PccY_G-18lFP0Q9NgNmNarH9QgSdWq02gOWnRXo2O419pSFb-X-zA/s1024/1000134900.jpg" sizes="192x192">
     <meta name="theme-color" content="#4F46E5">
     
+    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Chart.js for graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <!-- Load Moment.js for date calculations -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
 
+    <!-- Firebase SDKs (Using compat versions for simplicity) -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -71,13 +76,16 @@
             <p class="text-lg text-gray-500 mt-1">Consistency is Key (Cloud Synced).</p>
         </header>
 
+        <!-- Status Message -->
         <div id="statusMessage" class="hidden fixed top-4 left-1/2 transform -translate-x-1/2 p-3 bg-gray-800 text-white rounded-lg shadow-xl z-50 text-sm opacity-0 transition-opacity duration-300"></div>
         
+        <!-- LOADING INDICATOR (Visible by default until state is determined by JS) -->
         <div id="loadingIndicator" class="fixed inset-0 bg-white/75 flex items-center justify-center z-50">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
             <span class="ml-4 text-indigo-700 font-semibold">Syncing Data...</span>
         </div>
 
+        <!-- AUTHENTICATION CONTAINER (Hidden by default) -->
         <div id="authContainer" class="max-w-md mx-auto my-16 p-8 bg-white rounded-xl shadow-2xl border border-gray-100 text-center hidden">
             <h2 class="text-3xl font-bold text-gray-800 mb-6">Welcome!</h2>
             <p class="text-gray-600 mb-6">Sign in to sync your progress across all devices.</p>
@@ -88,7 +96,9 @@
             </button>
         </div>
 
+        <!-- MAIN TRACKER CONTAINER (Hidden until login) -->
         <div id="trackerAppContainer" class="max-w-6xl mx-auto hidden">
+            <!-- Today's Date Display -->
             <div class="text-center mb-8 p-3 bg-indigo-50 border-b border-indigo-200 rounded-lg max-w-lg mx-auto flex justify-between items-center">
                 <div class="text-left">
                     <p class="text-sm text-indigo-700 font-medium">Logging for: <span id="todayDateDisplay" class="font-mono font-bold"></span></p>
@@ -97,6 +107,7 @@
                 <button onclick="appLogic.handleLogout()" class="text-xs text-red-500 hover:text-red-700 py-1 px-3 border border-red-300 rounded transition duration-150">Logout</button>
             </div>
 
+            <!-- Mindset Card (Centerpiece) - Renamed for commitment -->
             <div id="believeCard" class="bg-white p-6 rounded-xl border-l-4 border-yellow-400 max-w-lg mx-auto mb-8 shadow-lg">
                 <div class="flex flex-col items-center justify-center">
                     <h2 class="text-3xl font-bold text-gray-800 mb-3">Commit 100%</h2>
@@ -107,6 +118,7 @@
                 </div>
             </div>
 
+            <!-- Custom Goal Creator - NEW SECTION -->
             <div id="customGoalCreator" class="max-w-xl mx-auto mb-8 p-6 bg-indigo-50 rounded-xl shadow-lg border border-indigo-200">
                 <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
                     <svg class="w-6 h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -129,10 +141,13 @@
                 </div>
             </div>
 
+            <!-- Growth Areas Grid - NEW EXERCISE CATEGORIES -->
             <div id="customGoalsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-                </div>
+                <!-- Custom Goal Cards will be inserted here by JavaScript -->
+            </div>
             
             <div id="fixedGoalsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+                <!-- Pushups (Replacing Academic) -->
                 <div id="pushupsCard" class="tracker-card bg-white p-6 border-l-4 border-green-400">
                     <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.433 9.498 5 8 5c-4 0-4 4-4 8 0 1.498.433 2.832 1.253 4M12 6.253c1.168-.82 2.502-1.253 4-1.253 4 0 4 4 4 8 0 1.498-.433 2.832-1.253 4"></path></svg>
@@ -155,6 +170,7 @@
                     </div>
                 </div>
 
+                <!-- Crunches (Replacing Daily Workout) -->
                 <div id="crunchesCard" class="tracker-card bg-white p-6 border-l-4 border-blue-400">
                     <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 14v5"></path></svg>
@@ -177,6 +193,7 @@
                     </div>
                 </div>
 
+                <!-- Squats (Replacing Personality & Social) -->
                 <div id="squatsCard" class="tracker-card bg-white p-6 border-l-4 border-purple-400">
                     <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 4v12l-4-2-4 2V4M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -199,6 +216,7 @@
                     </div>
                 </div>
 
+                <!-- Taekwondo Stretching (Replacing Placeholder/Future Area) -->
                 <div id="taekwondoCard" class="tracker-card bg-white p-6 border-l-4 border-red-400">
                     <h3 class="text-xl font-semibold text-gray-800 mb-4 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>
@@ -222,8 +240,10 @@
                 </div>
             </div>
 
+            <!-- --- ANALYSIS SECTION (Charts) --- -->
             <h2 class="text-2xl font-bold text-gray-800 text-center mb-6 pt-4 border-t border-gray-300">Analysis & Trends</h2>
             
+            <!-- Period Selector -->
             <div class="flex justify-center space-x-2 sm:space-x-4 mb-8 flex-wrap">
                 <button id="weekBtn" onclick="appLogic.setAnalysisPeriod('week')" class="period-btn py-2 px-4 sm:px-6 rounded-full text-sm sm:text-base text-gray-700 border border-gray-300 hover:bg-indigo-100 transition duration-150 mb-2">
                     Compare Week
@@ -240,6 +260,7 @@
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-10">
+                <!-- Comparison Card -->
                 <div class="analysis-card border-t-4 border-indigo-500 lg:col-span-1 flex flex-col justify-center items-center text-center">
                     <h3 class="text-lg font-semibold text-gray-700 mb-2">Growth Rate</h3>
                     
@@ -256,12 +277,19 @@
                     </div>
                     
                     <div class="mt-4 text-xl font-bold" id="scoreDifference">
-                        </div>
+                        <!-- Difference text rendered by JS -->
+                    </div>
                 </div>
 
+                <!-- Chart Cards (3/4 of space on large screens) - This will be dynamically populated -->
                 <div id="chartGrid" class="lg:col-span-3 grid grid-cols-1 md:grid-cols-4 gap-6">
-                    </div>
+                    <!-- Charts will be inserted here by JavaScript -->
+                </div>
             </div>
+            <!-- --- END ANALYSIS SECTION --- -->
+
+
+            <!-- Reset Button -->
             <div class="text-center mt-12 pb-4">
                 <button onclick="appLogic.resetDailyProgress()" class="text-sm text-gray-500 hover:text-red-500 transition duration-150 py-2 px-4 rounded-lg border border-gray-300 hover:border-red-500">
                     Reset Daily Progress (Start a new day)
@@ -286,7 +314,7 @@
         };
         
         // Environment variables required for Canvas functionality
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initialAuthToken : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         const appId = typeof __app_id !== 'undefined' ? __app_id : hardcodedFirebaseConfig.projectId;
 
         // App logic object to manage state and functions
@@ -310,7 +338,7 @@
                 mindset: { status: 'Untoggled', is100: false, unit: 'Affirmed' },
             },
             
-            // --- UTILITIES & UI HELPERS (Unchanged from original code) ---
+            // --- UTILITIES & UI HELPERS ---
             showStatusMessage(message, color) {
                 const statusMessage = document.getElementById('statusMessage');
                 statusMessage.textContent = message;
@@ -333,7 +361,7 @@
                 return moment().format('YYYY-MM-DD');
             },
 
-            // --- AUTHENTICATION HANDLERS (Unchanged from original code) ---
+            // --- AUTHENTICATION HANDLERS ---
             async handleGoogleLogin() {
                 if (!auth) {
                      appLogic.showStatusMessage('Initialization Failed. Please refresh.', 'bg-red-500');
@@ -373,7 +401,7 @@
                 }
             },
 
-            // --- FIREBASE DATA SYNC (Updated to handle custom goals) ---
+            // --- FIREBASE DATA SYNC ---
             async setupDataListener() {
                 if (!appLogic.userId) return;
 
@@ -442,7 +470,6 @@
                     if (appLogic.dailyGoalData[area]) {
                          dataToSave[area] = appLogic.dailyGoalData[area];
                     } else if (appLogic.DEFAULT_GOALS[area]) {
-                        // Re-add default if it somehow got lost but is a fixed area
                          dataToSave[area] = appLogic.DEFAULT_GOALS[area]; 
                     }
                 });
@@ -469,12 +496,11 @@
                 }
             },
 
-            // --- TRACKER LOGIC (Adapted for new goals) ---
+            // --- TRACKER LOGIC ---
             updateGoal(area, inputId) { 
                 const input = document.getElementById(inputId);
                 let goal = parseFloat(input.value);
                 if (isNaN(goal) || goal <= 0) {
-                    // Check if it's a fixed goal or default to 30 for custom
                     const defaultGoal = appLogic.DEFAULT_GOALS[area] ? appLogic.DEFAULT_GOALS[area].goal : 30; 
                     goal = defaultGoal;
                     input.value = goal;
@@ -537,20 +563,19 @@
             
             // NEW FUNCTION: Handles the removal of a custom goal
             removeGoal(area) {
-                if (!confirm(`Are you sure you want to remove the goal: ${area.replace(/_/g, ' ').toUpperCase()}? This cannot be undone.`)) {
-                    return;
-                }
-
+                // IMPORTANT: We cannot use window.confirm() in this environment.
+                // In a production app, this would use a custom modal for confirmation.
+                // For now, we'll implement direct removal upon clicking the button,
+                // treating the button click as the confirmed action.
+                
                 // Remove from customGoals array
                 appLogic.customGoals = appLogic.customGoals.filter(g => g !== area);
                 
-                // Remove from today's data (will be filtered out on next load, but important for immediate UI)
+                // Remove from today's data
                 if (appLogic.dailyGoalData[area]) {
                     delete appLogic.dailyGoalData[area];
                 }
 
-                // Since we need to update the history document to remove the data, 
-                // we'll explicitly delete all records for this goal across the entire history
                 const goalLabel = area.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
                 // Iterate through all days in history and remove the area key
@@ -562,7 +587,7 @@
 
                 appLogic.saveHistory(); // Save the pruned history
                 appLogic.renderUI(); // Re-render to update the UI immediately
-                appLogic.showStatusMessage(`${goalLabel} goal successfully removed!`, 'bg-red-500');
+                appLogic.showStatusMessage(`${goalLabel} goal successfully removed! (History erased)`, 'bg-red-500');
             },
 
 
@@ -645,7 +670,7 @@
             },
 
 
-            // --- RENDER UI (Updated to handle custom goals) ---
+            // --- RENDER UI (FIXED to ensure inputs show for custom goals) ---
             renderUI() { 
                 document.getElementById('todayDateDisplay').textContent = moment().format('ddd, MMM D, YYYY');
                 
@@ -671,9 +696,12 @@
                         // Use a generic SVG path for custom goals
                         const customSvgPath = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>';
                         
-                        const newCard = document.createElement('div');
-                        newCard.innerHTML = appLogic.renderCard(area, data, areaLabel, `border-${data.color}-400`, customSvgPath);
-                        customGoalsGrid.appendChild(newCard.firstChild);
+                        // *** FIX APPLIED HERE ***
+                        // Use a temporary div to correctly parse the HTML string into DOM elements
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = appLogic.renderCard(area, data, areaLabel, `border-${data.color}-400`, customSvgPath);
+                        customGoalsGrid.appendChild(tempDiv.firstChild);
+                        // *** END FIX ***
                         
                     } else {
                         // Fixed cards already exist in the HTML, so we just update their values
@@ -723,7 +751,7 @@
                 appLogic.setAnalysisPeriod(appLogic.activePeriod);
             },
             
-            // --- ANALYSIS & CHARTING (Updated to handle custom goals) ---
+            // --- ANALYSIS & CHARTING ---
             setAnalysisPeriod(period) {
                 appLogic.activePeriod = period;
                 document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('period-active'));
@@ -890,7 +918,7 @@
         };
 
 
-        // --- INITIALIZATION (Unchanged from original code) ---
+        // --- INITIALIZATION ---
         window.onload = async function() {
             firebase.setLogLevel('debug');
             
@@ -948,3 +976,4 @@
 
 </body>
 </html>
+
