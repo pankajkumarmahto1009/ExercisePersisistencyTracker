@@ -3,8 +3,8 @@
   "short_name": "My Fitness",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#4F46E5",
+  "background_color": "#020617",
+  "theme_color": "#020617",
   "description": "Track your Pushups, Crunches, Squats, and Taekwondo Stretching progress.",
   "icons": [
     {
